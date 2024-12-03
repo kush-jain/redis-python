@@ -1,22 +1,28 @@
-import socket  # noqa: F401
+import asyncio
 
 
-def handle_client(client):
+async def handle_client(reader, writer):
     # Handle client communication here.
-    client.recv(1024).decode("utf-8")
-    client.sendall(b"+PONG\r\n")
+    while True:
+        data = await reader.read(1024)
+
+        if not data:
+            break
+
+        writer.write(b"+PONG\r\n")
+        await writer.drain()
 
 
-def main():
+
+async def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     # print("Logs from your program will appear here!")
 
-    server_socket = socket.create_server(("localhost", 6379), reuse_port=True)
-    client, _ = server_socket.accept()  # wait for client
+    server = await asyncio.start_server(handle_client, "localhost", 6379)
 
-    while True:
-        handle_client(client)  # handle client connection
+    async with server:
+        await server.serve_forever()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
