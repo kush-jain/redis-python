@@ -96,6 +96,8 @@ class RedisEncoder:
         return f"{SIMPLE_STRING}{data}{TERMINATOR}"
 
     def encode_bulk_string(self, data):
+        if data is None:
+            return f"{BULK_STRING}-1{TERMINATOR}"           # Null bulk string
         return f"{BULK_STRING}{len(data)}{TERMINATOR}{data}{TERMINATOR}"
 
     def encode_array(self, data):

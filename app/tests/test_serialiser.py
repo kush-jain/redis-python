@@ -22,3 +22,6 @@ class TestRedisEncoder:
 
     def test_array(self):
         assert RedisEncoder().encode(["foo", "bar"]) == "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"
+
+    def test_null_bulk_string(self):
+        assert RedisEncoder().encode(None, EncodeTypes.BULK_STRING) == "$-1\r\n"
