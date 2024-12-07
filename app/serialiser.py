@@ -10,11 +10,6 @@ BULK_STRING = "$"
 ARRAY = "*"
 
 
-class EncodeTypes(Enum):
-    SIMPLE_STRING = "simple string"
-    BULK_STRING = "bulk string"
-    ARRAY = "array"
-
 
 class RedisDecoder:
     """
@@ -85,13 +80,6 @@ class RedisDecoder:
 
 class RedisEncoder:
 
-    def __init__(self):
-        self.enc_map = {
-            EncodeTypes.SIMPLE_STRING: self.encode_simple_string,
-            EncodeTypes.BULK_STRING: self.encode_bulk_string,
-            EncodeTypes.ARRAY: self.encode_array
-        }
-
     def encode_simple_string(self, data):
         return f"{SIMPLE_STRING}{data}{TERMINATOR}"
 
@@ -101,17 +89,4 @@ class RedisEncoder:
         return f"{BULK_STRING}{len(data)}{TERMINATOR}{data}{TERMINATOR}"
 
     def encode_array(self, data):
-        return f"{ARRAY}{len(data)}{TERMINATOR}{''.join(self.encode(item) for item in data)}"
-
-    def encode(self, data, hint = None):
-
-        if hint:
-            kls = self.enc_map[hint]
-        elif isinstance(data, str):
-            kls = self.encode_bulk_string
-        elif isinstance(data, list):
-            kls = self.encode_array
-        else:
-            raise RedisException(f"Unsupported type: {type(data)}")
-
-        return kls(data)
+        return f"{ARRAY}{len(data)}{TERMINATOR}{''.join(self.encode_bulk_string(item) for item in data)}"

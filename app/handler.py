@@ -1,4 +1,4 @@
-from app.serialiser import EncodeTypes
+from app.serialiser import RedisEncoder
 from app.exceptions import RedisException
 
 
@@ -14,34 +14,24 @@ DB = {}
 class RedisCommandHandler:
 
     def __init__(self):
-        self.response = {
-            "data": "",
-            "type": None
-        }
+        self.encoder = RedisEncoder()
 
-    def ping(self):
-        self.response = {
-            "data": "PONG",
-            "type": EncodeTypes.SIMPLE_STRING
-        }
+    def ping(self, command_arr):
+        return self.encoder.encode_simple_string("PONG")
 
     def echo(self, args):
-        self.response["data"] = args[0]
+        return self.encoder.encode_bulk_string(args[0])
 
     def set(self, args):
         key = args[0]
         value = args[1]
         DB[key] = value
-        self.response["data"] = "OK"
-        self.response["type"] = EncodeTypes.SIMPLE_STRING
+        return self.encoder.encode_simple_string("OK")
 
     def get(self, key):
         key = key[0]
-        if key in DB:
-            self.response["data"] = DB[key]
-        else:
-            self.response["data"] = None
-            self.response["type"] = EncodeTypes.BULK_STRING
+        value = DB.get(key)
+        return self.encoder.encode_bulk_string(value)
 
     def handle(self, command_arr):
 
@@ -52,15 +42,14 @@ class RedisCommandHandler:
 
         command = command.lower()
 
-        if command == PING:
-            self.ping()
-        elif command == ECHO:
-            self.echo(command_arr)
-        elif command == SET:
-            self.set(command_arr)
-        elif command == GET:
-            self.get(command_arr)
-        else:
-            raise RedisException("Unknown command")
+        kls_map = {
+            PING: self.ping,
+            ECHO: self.echo,
+            SET: self.set,
+            GET: self.get,
+        }
+        kls = kls_map.get(command)
+        if not kls:
+            raise RedisException("Invalid command")
 
-        return self.response
+        return kls(command_arr)

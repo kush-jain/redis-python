@@ -1,6 +1,6 @@
 import asyncio
 
-from app.serialiser import RedisDecoder, RedisEncoder
+from app.serialiser import RedisDecoder
 from app.handler import RedisCommandHandler
 
 
@@ -13,7 +13,6 @@ async def handle_client(reader, writer):
 
         data = RedisDecoder().decode(data.decode("utf-8"))
         response = RedisCommandHandler().handle(data)
-        response = RedisEncoder().encode(response["data"], response["type"])
 
         writer.write(response.encode("utf-8"))
         await writer.drain()
