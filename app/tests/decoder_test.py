@@ -1,13 +1,24 @@
-from app.decoder import RedisDecoder
+from app.serialiser import RedisDecoder, RedisEncoder
 
 
-def test_simple_string():
-    assert RedisDecoder("+OK\r\n").parsed_data == "OK"
+class TestRedisDecoder:
+    def test_simple_string(self):
+        assert RedisDecoder().decode("+OK\r\n") == "OK"
+
+    def test_bulk_string(self):
+        assert RedisDecoder().decode("$5\r\nhello\r\n") == "hello"
+
+    def test_array(self):
+        assert RedisDecoder().decode("*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n") == ["foo", "bar"]
 
 
-def test_bulk_string():
-    assert RedisDecoder("$5\r\nhello\r\n").parsed_data == "hello"
+class TestRedisEncoder:
 
+    def test_simple_string(self):
+        assert RedisEncoder().encode_simple_string("OK") == "+OK\r\n"
 
-def test_array():
-    assert RedisDecoder("*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n").parsed_data == ["foo", "bar"]
+    def test_bulk_string(self):
+        assert RedisEncoder().encode("hello") == "$5\r\nhello\r\n"
+
+    def test_array(self):
+        assert RedisEncoder().encode(["foo", "bar"]) == "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"

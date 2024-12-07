@@ -10,10 +10,6 @@ class RedisDecoder:
     Decode Redis Request
     """
 
-    def __init__(self, data: str):
-
-        self.parsed_data = self.decode(data.split(TERMINATOR))[0]
-
     def decode_simple_string(self, arr: list[str]):
         return arr[0][1:], arr[1:]
 
@@ -30,13 +26,26 @@ class RedisDecoder:
             if len(val) == count:
                 break
 
-            item, rem_arr = self.decode(rem_arr)
+            item, rem_arr = self._decode(rem_arr)
             val.append(item)
 
         return val, rem_arr
 
+    def decode(self, data):
+        """
+        Decodes a Redis request string into a Python object.
 
-    def decode(self, arr: list[str]):
+        Args:
+            str: Redis request string
+
+        Returns:
+            Any: The decoded Python object.
+        """
+
+        arr = data.split(TERMINATOR)
+        return self._decode(arr)[0]
+
+    def _decode(self, arr: list[str]):
         """
         Decodes a Redis request string into a Python object.
 
@@ -61,3 +70,23 @@ class RedisDecoder:
             return self.decode_array(arr)
 
         return None, []
+
+
+class RedisEncoder:
+
+    def encode_simple_string(self, data):
+        return f"{SIMPLE_STRING}{data}{TERMINATOR}"
+
+    def encode_bulk_string(self, data):
+        return f"{BULK_STRING}{len(data)}{TERMINATOR}{data}{TERMINATOR}"
+
+    def encode_array(self, data):
+        return f"{ARRAY}{len(data)}{TERMINATOR}{''.join(self.encode(item) for item in data)}"
+
+    def encode(self, data):
+        if isinstance(data, str):
+            return self.encode_bulk_string(data)
+        elif isinstance(data, list):
+            return self.encode_array(data)
+        else:
+            raise ValueError(f"Unsupported type: {type(data)}")

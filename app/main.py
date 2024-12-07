@@ -1,5 +1,7 @@
 import asyncio
 
+from app.serialiser import RedisDecoder, RedisEncoder
+
 
 async def handle_client(reader, writer):
     # Handle client communication here.
@@ -9,9 +11,11 @@ async def handle_client(reader, writer):
         if not data:
             break
 
-        writer.write(b"+PONG\r\n")
-        await writer.drain()
+        data = RedisDecoder().decode(data.decode("utf-8"))
+        response = RedisEncoder().encode("PONG")
 
+        writer.write(response.encode("utf-8"))
+        await writer.drain()
 
 
 async def main():
