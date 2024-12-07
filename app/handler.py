@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import os
 
 from app.serialiser import RedisEncoder
 from app.exceptions import RedisException
@@ -8,6 +9,7 @@ PING = "ping"
 ECHO = "echo"
 SET = "set"
 GET = "get"
+CONFIG = "config"
 
 
 DB = {}
@@ -55,6 +57,24 @@ class RedisCommandHandler:
 
         return self.encoder.encode_bulk_string(value.get("value"))
 
+    def config_get(self, args):
+        key = args[0]
+        value = os.getenv(key)
+        return self.encoder.encode_array([key, value])
+
+    def config(self, args):
+
+        subcommand = args[0].lower()
+
+        config_map = {
+            "get": self.config_get,
+        }
+
+        if subcommand not in config_map:
+            raise RedisException(f"Invalid config subcommand: {subcommand}")
+
+        return config_map[subcommand](args[1:])
+
     def handle(self, command_arr):
 
         command = command_arr
@@ -69,6 +89,7 @@ class RedisCommandHandler:
             ECHO: self.echo,
             SET: self.set,
             GET: self.get,
+            CONFIG: self.config,
         }
         kls = kls_map.get(command)
         if not kls:

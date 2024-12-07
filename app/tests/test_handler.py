@@ -1,4 +1,8 @@
+import os
 import time
+
+import pytest
+
 from app.handler import RedisCommandHandler, DB
 
 
@@ -36,6 +40,7 @@ class TestHandler:
         time.sleep(0.2)
         assert handler.handle(["GET", "expiry_key"]) == "$-1\r\n"
 
+    @pytest.mark.slow
     def test_set_with_expiry_ex(self):
         handler = RedisCommandHandler()
         assert handler.handle(["SET", "expiry_key", "value", "EX", "1"]) == "+OK\r\n"
@@ -45,3 +50,8 @@ class TestHandler:
         assert handler.handle(["GET", "expiry_key"]) == "$5\r\nvalue\r\n"
         time.sleep(2)
         assert handler.handle(["GET", "expiry_key"]) == "$-1\r\n"
+
+    def test_config_get(self):
+        handler = RedisCommandHandler()
+        os.environ["TEST_VAR"] = "test_value"
+        assert handler.handle(["CONFIG", "GET", "TEST_VAR"]) == "*2\r\n$8\r\nTEST_VAR\r\n$10\r\ntest_value\r\n"

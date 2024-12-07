@@ -1,4 +1,6 @@
 import asyncio
+import os
+import sys
 
 from app.serialiser import RedisDecoder
 from app.handler import RedisCommandHandler
@@ -26,4 +28,9 @@ async def main():
 
 
 if __name__ == "__main__":
+    match sys.argv:
+        case [_, "--dir", dir_path, "--dbfilename", dbdilename]:
+            os.environ["dir"] = dir_path
+            os.environ["dbfilename"] = dbdilename
+
     asyncio.run(main())
