@@ -1,7 +1,6 @@
 import argparse
 import asyncio
 import os
-import sys
 
 from app.serialiser import RedisDecoder
 from app.handler import RedisCommandHandler

@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta
+import fnmatch
 import os
 
 from app.serialiser import RedisEncoder
 from app.exceptions import RedisException
+from app.database import DB
 
 
 PING = "ping"
@@ -10,9 +12,7 @@ ECHO = "echo"
 SET = "set"
 GET = "get"
 CONFIG = "config"
-
-
-DB = {}
+KEYS = "keys"
 
 
 class RedisCommandHandler:
@@ -39,7 +39,7 @@ class RedisCommandHandler:
             elif arg.lower() == "ex":
                 expires_at = datetime.now() + timedelta(seconds=int(optional_args[idx+1]))
 
-        DB[key] = {"value": value, "expires_at": expires_at}
+        DB.set(key, value, expires_at)
 
         return self.encoder.encode_simple_string("OK")
 
@@ -49,13 +49,25 @@ class RedisCommandHandler:
 
         if value is not None:
             if value["expires_at"] is not None and value["expires_at"] < datetime.now():
-                del DB[key]
+                DB.del_key(key)
                 value = {}
 
         if value is None:
             value = {}
 
         return self.encoder.encode_bulk_string(value.get("value"))
+
+    def keys(self, pattern):
+        """
+        Match the pattern against DB keys, and return that
+        """
+
+        result = []
+        for key in DB:
+            if fnmatch.fnmatch(key, pattern[0]):
+                result.append(key)
+
+        return self.encoder.encode_array(result)
 
     def config_get(self, args):
         key = args[0]
@@ -90,6 +102,7 @@ class RedisCommandHandler:
             SET: self.set,
             GET: self.get,
             CONFIG: self.config,
+            KEYS: self.keys,
         }
         kls = kls_map.get(command)
         if not kls:
