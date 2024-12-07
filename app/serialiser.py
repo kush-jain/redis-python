@@ -1,8 +1,19 @@
+from enum import Enum
+
+from app.exceptions import RedisException
+
+
 TERMINATOR = "\r\n"
 
 SIMPLE_STRING = "+"
 BULK_STRING = "$"
 ARRAY = "*"
+
+
+class EncodeTypes(Enum):
+    SIMPLE_STRING = "simple string"
+    BULK_STRING = "bulk string"
+    ARRAY = "array"
 
 
 class RedisDecoder:
@@ -74,6 +85,13 @@ class RedisDecoder:
 
 class RedisEncoder:
 
+    def __init__(self):
+        self.enc_map = {
+            EncodeTypes.SIMPLE_STRING: self.encode_simple_string,
+            EncodeTypes.BULK_STRING: self.encode_bulk_string,
+            EncodeTypes.ARRAY: self.encode_array
+        }
+
     def encode_simple_string(self, data):
         return f"{SIMPLE_STRING}{data}{TERMINATOR}"
 
@@ -83,10 +101,15 @@ class RedisEncoder:
     def encode_array(self, data):
         return f"{ARRAY}{len(data)}{TERMINATOR}{''.join(self.encode(item) for item in data)}"
 
-    def encode(self, data):
-        if isinstance(data, str):
-            return self.encode_bulk_string(data)
+    def encode(self, data, hint = None):
+
+        if hint:
+            kls = self.enc_map[hint]
+        elif isinstance(data, str):
+            kls = self.encode_bulk_string
         elif isinstance(data, list):
-            return self.encode_array(data)
+            kls = self.encode_array
         else:
-            raise ValueError(f"Unsupported type: {type(data)}")
+            raise RedisException(f"Unsupported type: {type(data)}")
+
+        return kls(data)

@@ -1,4 +1,4 @@
-from app.serialiser import RedisDecoder, RedisEncoder
+from app.serialiser import RedisDecoder, RedisEncoder, EncodeTypes
 
 
 class TestRedisDecoder:
@@ -15,7 +15,7 @@ class TestRedisDecoder:
 class TestRedisEncoder:
 
     def test_simple_string(self):
-        assert RedisEncoder().encode_simple_string("OK") == "+OK\r\n"
+        assert RedisEncoder().encode("OK", EncodeTypes.SIMPLE_STRING) == "+OK\r\n"
 
     def test_bulk_string(self):
         assert RedisEncoder().encode("hello") == "$5\r\nhello\r\n"
