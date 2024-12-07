@@ -19,7 +19,7 @@ class TestHandler:
     def test_set(self):
         handler = RedisCommandHandler()
         assert handler.handle(["SET", "key", "value"]) == "+OK\r\n"
-        assert DB.get("key")["value"] == "value"
+        assert DB.get("key") == "value"
 
     def test_get(self):
         handler = RedisCommandHandler()
@@ -33,8 +33,6 @@ class TestHandler:
     def test_set_with_expiry_px(self):
         handler = RedisCommandHandler()
         assert handler.handle(["SET", "expiry_key", "value", "PX", "10"]) == "+OK\r\n"
-        assert DB.get("expiry_key")["value"] == "value"
-        assert DB.get("expiry_key")["expires_at"] is not None
 
         assert handler.handle(["GET", "expiry_key"]) == "$5\r\nvalue\r\n"
         time.sleep(0.2)

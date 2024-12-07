@@ -1,4 +1,6 @@
 from collections import OrderedDict
+from datetime import datetime
+
 
 class Database:
 
@@ -15,7 +17,17 @@ class Database:
         }
 
     def get(self, key):
-        return self.data.get(key)
+        value = self.data.get(key)
+
+        if value is not None:
+            if value["expires_at"] is not None and value["expires_at"] < datetime.now():
+                self.del_key(key)
+                value = {}
+
+        if value is None:
+            value = {}
+
+        return value.get("value")
 
     def del_key(self, key):
         if key in self.data:

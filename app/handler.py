@@ -47,15 +47,7 @@ class RedisCommandHandler:
         key = key[0]
         value = DB.get(key)
 
-        if value is not None:
-            if value["expires_at"] is not None and value["expires_at"] < datetime.now():
-                DB.del_key(key)
-                value = {}
-
-        if value is None:
-            value = {}
-
-        return self.encoder.encode_bulk_string(value.get("value"))
+        return self.encoder.encode_bulk_string(value)
 
     def keys(self, pattern):
         """
