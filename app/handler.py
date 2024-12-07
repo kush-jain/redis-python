@@ -29,15 +29,13 @@ class RedisCommandHandler:
         value = args[1]
 
         optional_args = args[2:]
-        timeout = None
         expires_at = None
 
         for idx, arg in enumerate(optional_args):
             if arg.lower() == "px":
-                timeout = int(optional_args[idx+1])
-
-        if timeout is not None:
-            expires_at = datetime.now() + timedelta(milliseconds=timeout)
+                expires_at = datetime.now() + timedelta(milliseconds=int(optional_args[idx+1]))
+            elif arg.lower() == "ex":
+                expires_at = datetime.now() + timedelta(seconds=int(optional_args[idx+1]))
 
         DB[key] = {"value": value, "expires_at": expires_at}
 
