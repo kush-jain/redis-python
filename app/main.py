@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import os
 import sys
@@ -28,9 +29,16 @@ async def main():
 
 
 if __name__ == "__main__":
-    match sys.argv:
-        case [_, "--dir", dir_path, "--dbfilename", dbdilename]:
-            os.environ["dir"] = dir_path
-            os.environ["dbfilename"] = dbdilename
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dir")
+    parser.add_argument("--dbfilename")
+    args = parser.parse_args()
+
+    if args.dir:
+        os.environ["dir"] = args.dir
+
+    if args.dbfilename:
+        os.environ["dbfilename"] = args.dbfilename
 
     asyncio.run(main())
