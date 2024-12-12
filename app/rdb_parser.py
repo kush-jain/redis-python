@@ -1,9 +1,10 @@
+from datetime import datetime
 import os
 
 REDIS_METADATA = 250  # b"\xfa"
-REDIS_HASH_TABLE = 251  # b"\xf1"   ## Resize DB
-REDIS_EXPIRY_MS = 252 # b"\xf2"
-REDIS_EXPIRY_SEC = 253 # b"\xf3"
+REDIS_HASH_TABLE = 251  # b"\xfb"   ## Resize DB
+REDIS_EXPIRY_MS = 252 # b"\xfc"
+REDIS_EXPIRY_SEC = 253 # b"\xfd"
 REDIS_DB_SELECTOR = 254 # b"\xfe"
 REDIS_EOF = 255       # b"\xff"
 
@@ -202,14 +203,12 @@ class RDBParser:
         value = ""
         expiry_at = None
 
-        # TODO: Convert expiry_at to unix timestamp
-
         if optional_code == REDIS_EXPIRY_SEC:
-            expiry_at = fd.read(4)
+            expiry_at = int.from_bytes(fd.read(4), "little")
             value_type = self.read_code(fd)
 
         elif optional_code == REDIS_EXPIRY_MS:
-            expiry_at = fd.read(8)
+            expiry_at = int.from_bytes(fd.read(8), "little") // 1000
             value_type = self.read_code(fd)
 
         key = self.read_string(fd)
@@ -259,7 +258,7 @@ class RDBParser:
             # Add data to the database
             self.databases[db_index][key] = {
                 "value": value,
-                "expires_at": expiry_at
+                "expires_at": datetime.fromtimestamp(expiry_at) if expiry_at else None
             }
 
     def read_databases(self, fd):
@@ -326,4 +325,4 @@ class RDBParser:
                         self.read_eof(fd)
                         break
         except FileNotFoundError:
-            return
+            pass
