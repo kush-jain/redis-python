@@ -1,8 +1,11 @@
 from collections import OrderedDict
 from datetime import datetime
 
+from app.utils import Singleton
+
 
 class Database:
+    __metadata__ = Singleton
 
     def __init__(self):
         self.data = OrderedDict()
@@ -35,6 +38,3 @@ class Database:
 
     def __iter__(self):
         return iter(self.data)
-
-
-DB = Database()

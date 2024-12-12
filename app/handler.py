@@ -4,7 +4,6 @@ import os
 
 from app.serialiser import RedisEncoder
 from app.exceptions import RedisException
-from app.database import DB
 
 
 PING = "ping"
@@ -17,8 +16,10 @@ KEYS = "keys"
 
 class RedisCommandHandler:
 
-    def __init__(self):
+    def __init__(self, db):
+        # Database is dependency injection
         self.encoder = RedisEncoder()
+        self.db = db
 
     def ping(self, command_arr):
         return self.encoder.encode_simple_string("PONG")
@@ -39,13 +40,13 @@ class RedisCommandHandler:
             elif arg.lower() == "ex":
                 expires_at = datetime.now() + timedelta(seconds=int(optional_args[idx+1]))
 
-        DB.set(key, value, expires_at)
+        self.db.set(key, value, expires_at)
 
         return self.encoder.encode_simple_string("OK")
 
     def get(self, key):
         key = key[0]
-        value = DB.get(key)
+        value = self.db.get(key)
 
         return self.encoder.encode_bulk_string(value)
 
@@ -55,7 +56,7 @@ class RedisCommandHandler:
         """
 
         result = []
-        for key in DB:
+        for key in self.db:
             if fnmatch.fnmatch(key, pattern[0]):
                 result.append(key)
 

@@ -4,6 +4,9 @@ import os
 
 from app.serialiser import RedisDecoder
 from app.handler import RedisCommandHandler
+from app.database import Database
+
+DB = Database()
 
 
 async def handle_client(reader, writer):
@@ -14,7 +17,7 @@ async def handle_client(reader, writer):
             break
 
         data = RedisDecoder().decode(data.decode("utf-8"))
-        response = RedisCommandHandler().handle(data)
+        response = RedisCommandHandler().handle(data, DB)
 
         writer.write(response.encode("utf-8"))
         await writer.drain()
