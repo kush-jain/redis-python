@@ -4,9 +4,8 @@ import os
 
 from app.serialiser import RedisDecoder
 from app.handler import RedisCommandHandler
+from app.rdb_parser import RDBParser
 from app.database import Database
-
-DB = Database()
 
 
 async def handle_client(reader, writer):
@@ -17,7 +16,7 @@ async def handle_client(reader, writer):
             break
 
         data = RedisDecoder().decode(data.decode("utf-8"))
-        response = RedisCommandHandler().handle(data, DB)
+        response = RedisCommandHandler().handle(data)
 
         writer.write(response.encode("utf-8"))
         await writer.drain()
@@ -42,5 +41,13 @@ if __name__ == "__main__":
 
     if args.dbfilename:
         os.environ["dbfilename"] = args.dbfilename
+
+    db_data = {}
+
+    if args.dbfilename:
+        rdb = RDBParser(args.dir, args.dbfilename)
+        db_data = rdb.databases[0] if rdb.databases else {}
+
+    Database(db_data)
 
     asyncio.run(main())

@@ -4,11 +4,10 @@ from datetime import datetime
 from app.utils import Singleton
 
 
-class Database:
-    __metadata__ = Singleton
+class Database(metaclass=Singleton):
 
-    def __init__(self):
-        self.data = OrderedDict()
+    def __init__(self, data=None):
+        self.data = data or OrderedDict()
 
     def clear(self):
         self.data = {}

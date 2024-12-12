@@ -4,6 +4,7 @@ import os
 
 from app.serialiser import RedisEncoder
 from app.exceptions import RedisException
+from app.database import Database
 
 
 PING = "ping"
@@ -16,10 +17,9 @@ KEYS = "keys"
 
 class RedisCommandHandler:
 
-    def __init__(self, db):
-        # Database is dependency injection
+    def __init__(self):
         self.encoder = RedisEncoder()
-        self.db = db
+        self.db = Database()
 
     def ping(self, command_arr):
         return self.encoder.encode_simple_string("PONG")
@@ -45,6 +45,7 @@ class RedisCommandHandler:
         return self.encoder.encode_simple_string("OK")
 
     def get(self, key):
+
         key = key[0]
         value = self.db.get(key)
 
