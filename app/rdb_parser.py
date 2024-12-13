@@ -38,7 +38,7 @@ class RDBParser:
         if _dir:
             filename = os.path.join(_dir, filename)
 
-        self.version = ""
+        self.protocol_version = ""
         self.metadata = {}
         self.databases = {}
 
@@ -149,7 +149,7 @@ class RDBParser:
             raise ValueError("Invalid RDB file")
 
         version = fd.read(4)
-        self.version = int(version, 2)
+        self.protocol_version = int(version, 2)
 
     def read_metadata(self, fd):
         """

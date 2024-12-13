@@ -10,7 +10,7 @@ class TestRDBParser:
 
         db = RDBParser("/opt/homebrew/var/db/redis", "dump.rdb")
 
-        assert db.version == 3
+        assert db.protocol_version == 3
 
         assert "redis-ver" in db.metadata
         assert "redis-bits" in db.metadata
