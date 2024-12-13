@@ -22,8 +22,8 @@ async def handle_client(reader, writer):
         await writer.drain()
 
 
-async def main():
-    server = await asyncio.start_server(handle_client, "localhost", 6379)
+async def main(port):
+    server = await asyncio.start_server(handle_client, "localhost", port)
 
     async with server:
         await server.serve_forever()
@@ -34,6 +34,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir")
     parser.add_argument("--dbfilename")
+    parser.add_argument("--port", default=6379)
     args = parser.parse_args()
 
     if args.dir:
@@ -50,4 +51,4 @@ if __name__ == "__main__":
 
     Database(db_data)
 
-    asyncio.run(main())
+    asyncio.run(main(args.port))
