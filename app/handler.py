@@ -13,6 +13,7 @@ SET = "set"
 GET = "get"
 CONFIG = "config"
 KEYS = "keys"
+INFO = "info"
 
 
 class RedisCommandHandler:
@@ -81,6 +82,27 @@ class RedisCommandHandler:
 
         return config_map[subcommand](args[1:])
 
+    def info_replication(self):
+        return self.encoder.encode_bulk_string("role:master")
+
+    def info(self, args=None):
+
+        args = args or []
+
+        if not args:
+            raise RedisException("Currently, INFO command expects subcommand")
+
+        subcommand = args[0].lower()
+
+        info_map = {
+            "replication": self.info_replication,
+        }
+
+        if subcommand not in info_map:
+            raise RedisException(f"Invalid info subcommand: {subcommand}")
+
+        return info_map[subcommand]()
+
     def handle(self, command_arr):
 
         command = command_arr
@@ -97,6 +119,7 @@ class RedisCommandHandler:
             GET: self.get,
             CONFIG: self.config,
             KEYS: self.keys,
+            INFO: self.info,
         }
         kls = kls_map.get(command)
         if not kls:

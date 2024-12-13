@@ -64,3 +64,7 @@ class TestHandler:
 
         assert handler.handle(["KEYS", "*"]) == "*3\r\n$4\r\nkey1\r\n$4\r\nkey2\r\n$4\r\nkey3\r\n"
         assert handler.handle(["KEYS", "*1"]) == "*1\r\n$4\r\nkey1\r\n"
+
+    def test_info_replication(self):
+        handler = RedisCommandHandler()
+        assert handler.handle(["INFO", "replication"]) == "$11\r\nrole:master\r\n"
