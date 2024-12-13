@@ -14,6 +14,9 @@ Requires `pytest` if you need to run local test cases
 
 ## Functionalities
 
+This Redis server can handle multiple concurrent clients.
+Clients can send multiple requests as needed
+
 ### Commands
 
 1. PING and ECHO commands
