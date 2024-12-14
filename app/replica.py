@@ -55,7 +55,11 @@ class Replica:
         if not response:
             raise RedisException("No response received from master")
 
-        return response.decode('utf-8')
+        try:
+            return response.decode('utf-8')
+        except UnicodeDecodeError:
+            logger.warning("Unable to decode response %s", response)
+            return b""
 
     def handshake(self):
         """
