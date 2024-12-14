@@ -50,7 +50,10 @@ if __name__ == "__main__":
     if args.replicaof:
         os.environ["replicaof"] = args.replicaof
         master_host, master_port = args.replicaof.split()
-        Replica(master_host, master_port).handshake()
+
+        replica = Replica(master_host, master_port)
+        replica.handshake()
+        replica.close_connection()
 
     db_data = {}
 

@@ -1,6 +1,7 @@
 import socket
 
 from app.serialiser import RedisEncoder
+from app.exceptions import RedisException
 
 
 class Replica:
@@ -9,6 +10,32 @@ class Replica:
         self.master_host = master_host
         self.master_port = int(master_port)
         self.encoder = RedisEncoder()
+        self.socket = None
+
+    def connect_to_master(self):
+        """
+        Establish a persistent connection to the master.
+
+        Raises:
+            RedisException: If connection fails
+        """
+        try:
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.connect((self.master_host, self.master_port))
+        except Exception as e:
+            raise RedisException(f"Connection failed: {e}") from e
+
+    def close_connection(self):
+        """
+        Safely close the socket connection.
+        """
+        if self.socket:
+            try:
+                self.socket.close()
+            except Exception as e:
+                print("Error closing socket: %s", {e})
+            finally:
+                self.socket = None
 
     def send_to_master(self, message):
         """
@@ -17,19 +44,9 @@ class Replica:
         Args:
             message (str/bytes): Data to be sent
         """
+
         try:
-            # Create a TCP socket
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                # Connect to the server
-                sock.connect((self.master_host, self.master_port))
-
-                # Convert message to bytes if it's not already
-                if isinstance(message, str):
-                    message = message.encode('utf-8')
-
-                # Send the data
-                sock.sendall(message)
-
+            self.socket.sendall(message.encode('utf-8'))
         except ConnectionRefusedError:
             print(f"Connection to {self.master_host}:{self.master_port} was refused")
         except socket.error as e:
@@ -46,7 +63,8 @@ class Replica:
             The replica sends PSYNC to the master
         """
 
-        self.send_to_master(self.ping())
+        self.connect_to_master()
+        self.ping()
 
     def ping(self):
-        return self.encoder.encode_array(["PING"])
+        return self.send_to_master(self.encoder.encode_array(["PING"]))
