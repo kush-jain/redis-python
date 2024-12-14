@@ -83,7 +83,9 @@ class RedisCommandHandler:
         return config_map[subcommand](args[1:])
 
     def info_replication(self):
-        return self.encoder.encode_bulk_string("role:master")
+        is_replica = os.getenv("replicaof")
+        role = "slave" if is_replica else "master"
+        return self.encoder.encode_bulk_string(f"role:{role}")
 
     def info(self, args=None):
 

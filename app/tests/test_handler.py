@@ -68,3 +68,8 @@ class TestHandler:
     def test_info_replication(self):
         handler = RedisCommandHandler()
         assert handler.handle(["INFO", "replication"]) == "$11\r\nrole:master\r\n"
+
+    def test_info_replication_slave(self):
+        handler = RedisCommandHandler()
+        os.environ["replicaof"] = "localhost 6379"
+        assert handler.handle(["INFO", "replication"]) == "$10\r\nrole:slave\r\n"

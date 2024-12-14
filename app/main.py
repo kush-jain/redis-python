@@ -35,6 +35,7 @@ if __name__ == "__main__":
     parser.add_argument("--dir")
     parser.add_argument("--dbfilename")
     parser.add_argument("--port", default=6379)
+    parser.add_argument("--replicaof")
     args = parser.parse_args()
 
     if args.dir:
@@ -42,6 +43,9 @@ if __name__ == "__main__":
 
     if args.dbfilename:
         os.environ["dbfilename"] = args.dbfilename
+
+    if args.replicaof:
+        os.environ["replicaof"] = args.replicaof
 
     db_data = {}
 
