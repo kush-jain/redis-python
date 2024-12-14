@@ -1,7 +1,10 @@
 import socket
+import logging
 
 from app.serialiser import RedisEncoder, RedisDecoder
 from app.exceptions import RedisException
+
+logger = logging.getLogger(__name__)
 
 
 class Replica:
@@ -73,7 +76,7 @@ class Replica:
     def ping(self):
         response = self.send_to_master(self.encoder.encode_array(["PING"]))
         if self.decoder.decode(response) != "PONG":
-            raise RedisException("Failed to receive PONG")
+            logger.warning("Failed to receive PONG")
 
 
     def replconf(self):
@@ -88,14 +91,14 @@ class Replica:
             self.encoder.encode_array(["REPLCONF", "listening-port", str(self.port)])
         )
         if self.decoder.decode(resp)!= "OK":
-            raise RedisException("Failed to set listening port")
+            logger.warning("Failed to set listening port")
 
         # Send capabilities
         resp = self.send_to_master(
             self.encoder.encode_array(["REPLCONF", "capa", "psync2"])
         )
         if self.decoder.decode(resp)!= "OK":
-            raise RedisException("Failed to set replication capabilities")
+            logger.warning("Failed to set replication capabilities")
 
     def psync(self):
         """
@@ -105,11 +108,12 @@ class Replica:
         The replica will send this command to the master with two arguments:
 
         The first argument is the replication ID of the master
-            Since this is the first time the replica is connecting to the master, the replication ID will be ? (a question mark)
+            Since this is the first time the replica is connecting to the master,
+            the replication ID will be ? (a question mark)
 
         The second argument is the offset of the master
             Since this is the first time the replica is connecting to the master, the offset will be -1
         """
         response = self.send_to_master(self.encoder.encode_array(["PSYNC", "?", "-1"]))
         if not self.decoder.decode(response).startswith("FULLRESYNC"):
-            raise RedisException("Failed to initiate replication")
+            logger.warning("Failed to initiate replication")
