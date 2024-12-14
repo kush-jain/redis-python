@@ -5,6 +5,7 @@ import os
 from app.serialiser import RedisEncoder
 from app.exceptions import RedisException
 from app.database import Database
+from app.utils import gen_random_string
 
 
 PING = "ping"
@@ -85,7 +86,18 @@ class RedisCommandHandler:
     def info_replication(self):
         is_replica = os.getenv("replicaof")
         role = "slave" if is_replica else "master"
-        return self.encoder.encode_bulk_string(f"role:{role}")
+
+        # Initialize the response dictionary with the role
+        response_parts = {"role": role}
+
+        # Add additional master-specific information if the node is a master
+        if role == "master":
+            response_parts["master_repl_offset"] = 0
+            response_parts["master_replid"] = gen_random_string(40)
+
+        # Convert dictionary to formatted response lines and encode
+        response_lines = [f"{key}:{value}" for key, value in response_parts.items()]
+        return self.encoder.encode_bulk_string("\r\n".join(response_lines))
 
     def info(self, args=None):
 

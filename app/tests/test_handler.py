@@ -67,7 +67,22 @@ class TestHandler:
 
     def test_info_replication(self):
         handler = RedisCommandHandler()
-        assert handler.handle(["INFO", "replication"]) == "$11\r\nrole:master\r\n"
+        master_replication = handler.handle(["INFO", "replication"])
+
+        resp = master_replication.split("\r\n")
+        resp_map = {}
+
+        for item in resp[1:]:
+
+            if not item:
+                continue
+
+            key, value = item.split(":")
+            resp_map[key] = value
+
+        assert resp_map["role"] == "master"
+        assert resp_map["master_repl_offset"] == "0"
+        assert len(resp_map["master_replid"]) == 40
 
     def test_info_replication_slave(self):
         handler = RedisCommandHandler()
