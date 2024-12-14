@@ -1,8 +1,3 @@
-from enum import Enum
-
-from app.exceptions import RedisException
-
-
 TERMINATOR = "\r\n"
 
 SIMPLE_STRING = "+"

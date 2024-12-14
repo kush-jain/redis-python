@@ -6,9 +6,10 @@ from app.exceptions import RedisException
 
 class Replica:
 
-    def __init__(self, master_host, master_port):
+    def __init__(self, master_host, master_port, self_port):
         self.master_host = master_host
         self.master_port = int(master_port)
+        self.port = int(self_port)
         self.encoder = RedisEncoder()
         self.decoder = RedisDecoder()
         self.socket = None
@@ -66,8 +67,31 @@ class Replica:
 
         self.connect_to_master()
         self.ping()
+        self.replconf()
 
     def ping(self):
         response = self.send_to_master(self.encoder.encode_array(["PING"]))
-        if self.decoder.decode_simple_string(response) != "+PONG":
-            raise RedisException(f"Expected PONG but got: {response}")
+        if self.decoder.decode(response) != "PONG":
+            raise RedisException("Failed to receive PONG")
+
+
+    def replconf(self):
+        """
+        Send REPLCONF commands to configure replication.
+
+        1. Notify master of listening port
+        2. Declare replication capabilities
+        """
+        # Send listening port configuration
+        resp = self.send_to_master(
+            self.encoder.encode_array(["REPLCONF", "listening-port", str(self.port)])
+        )
+        if self.decoder.decode(resp)!= "OK":
+            raise RedisException("Failed to set listening port")
+
+        # Send capabilities
+        resp = self.send_to_master(
+            self.encoder.encode_array(["REPLCONF", "capa", "psync2"])
+        )
+        if self.decoder.decode(resp)!= "OK":
+            raise RedisException("Failed to set replication capabilities")

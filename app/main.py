@@ -51,7 +51,7 @@ if __name__ == "__main__":
         os.environ["replicaof"] = args.replicaof
         master_host, master_port = args.replicaof.split()
 
-        replica = Replica(master_host, master_port)
+        replica = Replica(master_host, master_port, args.port)
         replica.handshake()
         replica.close_connection()
 

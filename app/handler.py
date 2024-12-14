@@ -15,6 +15,7 @@ GET = "get"
 CONFIG = "config"
 KEYS = "keys"
 INFO = "info"
+REPLCONF = "replconf"
 
 
 class RedisCommandHandler:
@@ -117,6 +118,14 @@ class RedisCommandHandler:
 
         return info_map[subcommand]()
 
+    def replconf(self, args):
+        """
+        Sends response back to replconf command.
+        Currently, just send back OK - we need to add actual capabilities later on
+        """
+
+        return self.encoder.encode_simple_string("OK")
+
     def handle(self, command_arr):
 
         command = command_arr
@@ -134,6 +143,7 @@ class RedisCommandHandler:
             CONFIG: self.config,
             KEYS: self.keys,
             INFO: self.info,
+            REPLCONF: self.replconf,
         }
         kls = kls_map.get(command)
         if not kls:
