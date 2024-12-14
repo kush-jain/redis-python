@@ -16,6 +16,7 @@ CONFIG = "config"
 KEYS = "keys"
 INFO = "info"
 REPLCONF = "replconf"
+PSYNC = "psync"
 
 
 class RedisCommandHandler:
@@ -23,6 +24,11 @@ class RedisCommandHandler:
     def __init__(self):
         self.encoder = RedisEncoder()
         self.db = Database()
+        self.replication_id = None
+
+        is_replica = os.getenv("replicaof")
+        if not is_replica:
+            self.replication_id = gen_random_string(40)
 
     def ping(self, command_arr):
         return self.encoder.encode_simple_string("PONG")
@@ -94,7 +100,7 @@ class RedisCommandHandler:
         # Add additional master-specific information if the node is a master
         if role == "master":
             response_parts["master_repl_offset"] = 0
-            response_parts["master_replid"] = gen_random_string(40)
+            response_parts["master_replid"] = self.replication_id
 
         # Convert dictionary to formatted response lines and encode
         response_lines = [f"{key}:{value}" for key, value in response_parts.items()]
@@ -126,6 +132,14 @@ class RedisCommandHandler:
 
         return self.encoder.encode_simple_string("OK")
 
+    def psync(self, args):
+        """
+        Return fullresync response back to psync command.
+        Dummy implementation for now
+        """
+
+        return self.encoder.encode_simple_string("FULLRESYNC {master_replid} 0\r\n")
+
     def handle(self, command_arr):
 
         command = command_arr
@@ -144,6 +158,7 @@ class RedisCommandHandler:
             KEYS: self.keys,
             INFO: self.info,
             REPLCONF: self.replconf,
+            PSYNC: self.psync,
         }
         kls = kls_map.get(command)
         if not kls:

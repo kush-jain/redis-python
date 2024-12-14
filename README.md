@@ -57,6 +57,11 @@ Only support RDB v3
 3. Only work with string values for now. Does not work with compressed strings. Does work with integers encoded as strings
 4. Does not support writing to RDB
 
+### Replication
+
+Handshake for master-slave replication is WIP.
+It does not actually replicate - only handshake is being done for now
+
 ## References and Help
 
 ### Socket

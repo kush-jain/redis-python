@@ -88,3 +88,12 @@ class TestHandler:
         handler = RedisCommandHandler()
         os.environ["replicaof"] = "localhost 6379"
         assert handler.handle(["INFO", "replication"]) == "$10\r\nrole:slave\r\n"
+
+    def test_replconf(self):
+        handler = RedisCommandHandler()
+        assert handler.handle(["REPLCONF", "capa", "psycn2"]) == "+OK\r\n"
+
+    def test_psync(self):
+        handler = RedisCommandHandler()
+        resp = handler.handle(["psync", "master_replid", "offset"])
+        assert resp.startswith("+FULLRESYNC")

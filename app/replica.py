@@ -68,6 +68,7 @@ class Replica:
         self.connect_to_master()
         self.ping()
         self.replconf()
+        self.psync()
 
     def ping(self):
         response = self.send_to_master(self.encoder.encode_array(["PING"]))
@@ -95,3 +96,20 @@ class Replica:
         )
         if self.decoder.decode(resp)!= "OK":
             raise RedisException("Failed to set replication capabilities")
+
+    def psync(self):
+        """
+        Initiate replication to master
+
+        The PSYNC command is used to synchronize the state of the replica with the master.
+        The replica will send this command to the master with two arguments:
+
+        The first argument is the replication ID of the master
+            Since this is the first time the replica is connecting to the master, the replication ID will be ? (a question mark)
+
+        The second argument is the offset of the master
+            Since this is the first time the replica is connecting to the master, the offset will be -1
+        """
+        response = self.send_to_master(self.encoder.encode_array(["PSYNC", "?", "-1"]))
+        if not self.decoder.decode(response).startswith("FULLRESYNC"):
+            raise RedisException("Failed to initiate replication")
