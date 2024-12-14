@@ -141,7 +141,7 @@ class RedisCommandHandler:
         Dummy implementation for now
         """
 
-        return self.encoder.encode_simple_string("FULLRESYNC {master_replid} 0\r\n")
+        return self.encoder.encode_simple_string(f"FULLRESYNC {self.replication_id} 0\r\n")
 
     def handle(self, command_arr):
 
