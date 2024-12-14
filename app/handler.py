@@ -24,11 +24,14 @@ class RedisCommandHandler:
     def __init__(self):
         self.encoder = RedisEncoder()
         self.db = Database()
+
         self.replication_id = None
+        self.replication_offset = None
 
         is_replica = os.getenv("replicaof")
         if not is_replica:
             self.replication_id = gen_random_string(40)
+            self.replication_offset = 0
 
     def ping(self, command_arr):
         return self.encoder.encode_simple_string("PONG")
@@ -99,7 +102,7 @@ class RedisCommandHandler:
 
         # Add additional master-specific information if the node is a master
         if role == "master":
-            response_parts["master_repl_offset"] = 0
+            response_parts["master_repl_offset"] = self.replication_offset
             response_parts["master_replid"] = self.replication_id
 
         # Convert dictionary to formatted response lines and encode
