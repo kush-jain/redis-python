@@ -1,6 +1,6 @@
 import socket
 
-from app.serialiser import RedisEncoder
+from app.serialiser import RedisEncoder, RedisDecoder
 from app.exceptions import RedisException
 
 
@@ -10,6 +10,7 @@ class Replica:
         self.master_host = master_host
         self.master_port = int(master_port)
         self.encoder = RedisEncoder()
+        self.decoder = RedisDecoder()
         self.socket = None
 
     def connect_to_master(self):
@@ -45,12 +46,12 @@ class Replica:
             message (str/bytes): Data to be sent
         """
 
-        try:
-            self.socket.sendall(message.encode('utf-8'))
-        except ConnectionRefusedError:
-            print(f"Connection to {self.master_host}:{self.master_port} was refused")
-        except socket.error as e:
-            print(f"Socket error occurred: {e}")
+        self.socket.sendall(message.encode('utf-8'))
+        response = self.socket.recv(1024)
+        if not response:
+            raise RedisException("No response received from master")
+
+        return response.decode('utf-8')
 
     def handshake(self):
         """
@@ -67,4 +68,6 @@ class Replica:
         self.ping()
 
     def ping(self):
-        return self.send_to_master(self.encoder.encode_array(["PING"]))
+        response = self.send_to_master(self.encoder.encode_array(["PING"]))
+        if self.decoder.decode_simple_string(response) != "+PONG":
+            raise RedisException(f"Expected PONG but got: {response}")
