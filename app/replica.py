@@ -118,6 +118,4 @@ class Replica:
         The second argument is the offset of the master
             Since this is the first time the replica is connecting to the master, the offset will be -1
         """
-        response = self.send_to_master(self.encoder.encode_array(["PSYNC", "?", "-1"]))
-        if not self.decoder.decode(response).startswith("FULLRESYNC"):
-            logger.warning("Failed to initiate replication")
+        self.send_to_master(self.encoder.encode_array(["PSYNC", "?", "-1"]))
