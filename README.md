@@ -1,6 +1,6 @@
 # Basic Redis Implementation
 
-In this, implement basic Redis implementation
+In this, implement basic Redis implementation by creating Redis SERVER.
 Idea is not to create REDIS, but learn the key concepts in REDIS.
 
 ## Inspiration
@@ -11,6 +11,23 @@ Inspired by [codecrafters](https://app.codecrafters.io/courses/redis/).
 
 Tested with Python 3.9+
 Requires `pytest` if you need to run local test cases
+
+## How to use
+
+### Server
+
+Server can be up using `$./run.sh`
+Ports etc can be specified as with normal Redis
+
+It is configured to use default port of 6379, which might conflict if you already have redis running on your system
+In that case, either configure a custom port using `--port <port>` or stop the redis
+
+### Client
+
+If you open up server, you can open up multiple clients, and send commands, for example:
+`$echo -ne '*1\r\n$4\r\nping\r\n' | nc localhost <port>`
+
+Or using your favorite programming language
 
 ## Functionalities
 
