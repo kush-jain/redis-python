@@ -85,3 +85,11 @@ class RedisEncoder:
 
     def encode_array(self, data):
         return f"{ARRAY}{len(data)}{TERMINATOR}{''.join(self.encode_bulk_string(item) for item in data)}"
+
+    def encode_file(self, data: bytes):
+        """
+        Similar to bulk string except we do not add end terminator.
+        Also, we expect data to be in bytes and give back bytes
+        """
+
+        return f"{BULK_STRING}{len(data)}{TERMINATOR}".encode("utf-8") + data

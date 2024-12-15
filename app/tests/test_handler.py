@@ -96,4 +96,4 @@ class TestHandler:
     def test_psync(self):
         handler = RedisCommandHandler()
         resp = handler.handle(["psync", "master_replid", "offset"])
-        assert resp.startswith("+FULLRESYNC")
+        assert resp.startswith(b"+FULLRESYNC")

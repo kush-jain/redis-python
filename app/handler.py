@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime, timedelta
 import fnmatch
 import os
@@ -17,6 +18,8 @@ KEYS = "keys"
 INFO = "info"
 REPLCONF = "replconf"
 PSYNC = "psync"
+
+EMPTY_RDB = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
 
 
 class RedisCommandHandler:
@@ -141,7 +144,12 @@ class RedisCommandHandler:
         Dummy implementation for now
         """
 
-        return self.encoder.encode_simple_string(f"FULLRESYNC {self.replication_id} 0\r\n")
+        full_resync_command = self.encoder.encode_simple_string(
+            f"FULLRESYNC {self.replication_id} {self.replication_offset}"
+        ).encode('utf-8')
+
+        empty_rdb = base64.b64decode(EMPTY_RDB)
+        return full_resync_command + self.encoder.encode_file(empty_rdb)
 
     def handle(self, command_arr):
 

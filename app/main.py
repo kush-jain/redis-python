@@ -19,7 +19,10 @@ async def handle_client(reader, writer):
         data = RedisDecoder().decode(data.decode("utf-8"))
         response = RedisCommandHandler().handle(data)
 
-        writer.write(response.encode("utf-8"))
+        if isinstance(response, str):
+            response = response.encode("utf-8")
+
+        writer.write(response)
         await writer.drain()
 
 
