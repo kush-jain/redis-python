@@ -4,7 +4,7 @@ import os
 
 from app.serialiser import RedisDecoder
 from app.handler import RedisCommandHandler
-from app.rdb_parser import RDBParser
+from app.rdb.parser import RDBParser
 from app.database import Database
 from app.replica import Replica
 

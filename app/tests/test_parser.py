@@ -1,4 +1,4 @@
-from app.rdb_parser import RDBParser
+from app.rdb.parser import RDBParser
 
 
 class TestRDBParser:
