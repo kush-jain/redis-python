@@ -60,7 +60,7 @@ Only support RDB v3
 ### Replication
 
 Handshake for master-slave replication is in place.
-Do basic replication.
+Do basic replication - capable of single or multiple replication
 
 ## References and Help
 
