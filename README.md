@@ -60,7 +60,7 @@ Only support RDB v3
 ### Replication
 
 Handshake for master-slave replication is in place.
-It does not actually replicate - only handshake is being done for now
+Do basic replication.
 
 ## References and Help
 
