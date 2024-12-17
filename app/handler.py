@@ -61,6 +61,9 @@ class RedisCommandHandler:
 
         self.db.set(key, value, expires_at)
 
+        if self.is_replica:
+            return None
+
         return self.encoder.encode_simple_string("OK")
 
     def get(self, key):

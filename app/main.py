@@ -24,10 +24,11 @@ async def handle_client(reader, writer):
             data = data.decode("utf-8")
             response = await handler.handle(data, writer)
 
-            if isinstance(response, str):
-                response = response.encode("utf-8")
+            if response:
+                if isinstance(response, str):
+                    response = response.encode("utf-8")
+                writer.write(response)
 
-            writer.write(response)
             await writer.drain()
     except Exception as e:
         print("Error", e)
