@@ -2,7 +2,6 @@ import argparse
 import asyncio
 import os
 
-from app.serialiser import RedisDecoder
 from app.handler import RedisCommandHandler
 from app.rdb.parser import RDBParser
 from app.database import Database
@@ -16,7 +15,7 @@ async def handle_client(reader, writer):
         if not data:
             break
 
-        data = RedisDecoder().decode(data.decode("utf-8"))
+        data = data.decode("utf-8")
         response = RedisCommandHandler().handle(data)
 
         if isinstance(response, str):

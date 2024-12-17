@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import fnmatch
 import os
 
-from app.serialiser import RedisEncoder
+from app.serialiser import RedisEncoder, RedisDecoder
 from app.exceptions import RedisException
 from app.database import Database
 from app.utils import gen_random_string
@@ -151,7 +151,9 @@ class RedisCommandHandler:
         empty_rdb = base64.b64decode(EMPTY_RDB)
         return full_resync_command + self.encoder.encode_file(empty_rdb)
 
-    def handle(self, command_arr):
+    def handle(self, command_data):
+
+        command_arr = RedisDecoder().decode(command_data)
 
         command = command_arr
         if isinstance(command_arr, list):
