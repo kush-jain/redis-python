@@ -35,8 +35,8 @@ class RedisCommandHandler:
 
         self.connection_registry = connection_registry or ConnectionRegistry()
 
-        is_replica = os.getenv("replicaof")
-        if not is_replica:
+        self.is_replica = os.getenv("replicaof", False)
+        if not self.is_replica:
             self.replication_id = gen_random_string(40)
             self.replication_offset = 0
 
@@ -172,16 +172,16 @@ class RedisCommandHandler:
         """
         await self.connection_registry.broadcast(data)
 
-    async def handle(self, command_data, writer=None):
-
-        command_arr = RedisDecoder().decode(command_data)
-
+    def get_command(self, command_arr):
         command = command_arr
         if isinstance(command_arr, list):
             command = command_arr[0]
             command_arr = command_arr[1:]
 
         command = command.lower()
+        return command, command_arr
+
+    def get_command_kls(self, command):
 
         kls_map = {
             PING: self.ping,
@@ -198,16 +198,51 @@ class RedisCommandHandler:
         if not kls:
             raise RedisException("Invalid command")
 
+        return kls
+
+    async def handle_master_command(self, command_data, writer):
+
+        command_arr = RedisDecoder().decode(command_data)
+        command, command_arr = self.get_command(command_arr)
+
+        kls = self.get_command_kls(command)
+
         # Commands which need to be broadcasted to the replicas
         broadcast_set = {SET}
 
-        # Commands which need to be passed writer argument
-        writer_set = {PSYNC}
-
         if command in broadcast_set:
             await self.write_to_replicas(command_data)
+
+        # Commands which need to be passed writer argument
+        writer_set = {PSYNC}
 
         if command in writer_set:
             return await kls(command_arr, writer)
 
         return kls(command_arr)
+
+    def handle_replica(self, command_data):
+        """
+        If it is replica, it might get multiple Write commands
+        """
+        command_arr = RedisDecoder().multi_command_decoder(command_data)
+
+        responses = []
+
+        for command in command_arr:
+            comm, comm_arr = self.get_command(command)
+            kls = self.get_command_kls(comm)
+            response = kls(comm_arr)
+            if response:
+                responses.append(response)
+
+        return "".join(responses)
+
+    async def handle(self, command_data, writer=None):
+        """
+        Handle commands from master or replica
+        """
+        if self.is_replica:
+            return self.handle_replica(command_data)
+
+        return await self.handle_master_command(command_data, writer)

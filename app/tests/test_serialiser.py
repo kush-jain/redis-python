@@ -11,6 +11,14 @@ class TestRedisDecoder:
     def test_array(self):
         assert RedisDecoder().decode("*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n") == ["foo", "bar"]
 
+    def test_multi_command_decoder_single_command(self):
+        assert RedisDecoder().multi_command_decoder("*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n") == [["foo", "bar"]]
+
+    def test_multi_command_decoder_multi_command(self):
+        assert RedisDecoder().multi_command_decoder(
+            "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"
+        ) == [["foo", "bar"], ["foo", "bar"]]
+
 
 class TestRedisEncoder:
 

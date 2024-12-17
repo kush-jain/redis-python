@@ -32,6 +32,39 @@ class RedisDecoder:
 
         return val, rem_arr
 
+    def multi_command_decoder(self, data):
+        """
+        Decode potentially multiple commands in a single Redis request string.
+
+        Args:
+            data (str): Redis request string containing one or more commands
+
+        Returns:
+            list: List of decoded commands
+        """
+        arr = data.split(TERMINATOR)
+        if arr[-1] == "":
+            arr = arr[:-1]  # Remove the last empty string
+
+        # List to store multiple decoded commands
+        commands = []
+
+        # Continue decoding until all data is processed
+        while arr:
+
+            # Decode the first command
+            command, arr = self._decode(arr)
+
+            # Add the decoded command to the list
+            if command is not None:
+                commands.append(command)
+
+            # If no more data, break the loop
+            if not arr:
+                break
+
+        return commands
+
     def decode(self, data):
         """
         Decodes a Redis request string into a Python object.

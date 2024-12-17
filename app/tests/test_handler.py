@@ -91,6 +91,7 @@ class TestHandler:
         handler = RedisCommandHandler()
         os.environ["replicaof"] = "localhost 6379"
         assert await handler.handle(encoder.encode_array(["INFO", "replication"])) == "$10\r\nrole:slave\r\n"
+        del os.environ["replicaof"]
 
     async def test_replconf(self):
         handler = RedisCommandHandler()
@@ -98,5 +99,5 @@ class TestHandler:
 
     async def test_psync(self):
         handler = RedisCommandHandler()
-        resp = await handler.handle(encoder.encode_array(["psync", "master_replid", "offset"]))
+        resp = await handler.handle(encoder.encode_array(["psync", "master_replid", "offset"]), "writer")
         assert resp.startswith(b"+FULLRESYNC")
