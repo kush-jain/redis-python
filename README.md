@@ -10,7 +10,7 @@ Inspired by [codecrafters](https://app.codecrafters.io/courses/redis/).
 ## Dependencies
 
 Tested with Python 3.9+
-Requires `pytest` if you need to run local test cases
+Requires `pytest` and `pytest-asyncio` if you need to run local test cases
 
 ## How to use
 

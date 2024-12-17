@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import os
 
+from app.connection_registry import ConnectionRegistry
 from app.handler import RedisCommandHandler
 from app.rdb.parser import RDBParser
 from app.database import Database
@@ -9,20 +10,32 @@ from app.replica import Replica
 
 
 async def handle_client(reader, writer):
-    while True:
-        data = await reader.read(1024)
 
-        if not data:
-            break
+    connection_registry = ConnectionRegistry()
+    handler = RedisCommandHandler(connection_registry)
 
-        data = data.decode("utf-8")
-        response = RedisCommandHandler().handle(data)
+    try:
+        while True:
+            data = await reader.read(1024)
 
-        if isinstance(response, str):
-            response = response.encode("utf-8")
+            if not data:
+                break
 
-        writer.write(response)
-        await writer.drain()
+            data = data.decode("utf-8")
+            response = await handler.handle(data, writer)
+
+            if isinstance(response, str):
+                response = response.encode("utf-8")
+
+            writer.write(response)
+            await writer.drain()
+    except Exception as e:
+        print("Error", e)
+    finally:
+        # Ensure cleanup of replica if connection closes
+        await connection_registry.remove_replica(writer)
+        writer.close()
+        await writer.wait_closed()
 
 
 async def main(port):

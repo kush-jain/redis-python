@@ -1,8 +1,10 @@
+import asyncio
 import base64
 from datetime import datetime, timedelta
 import fnmatch
 import os
 
+from app.connection_registry import ConnectionRegistry
 from app.serialiser import RedisEncoder, RedisDecoder
 from app.exceptions import RedisException
 from app.database import Database
@@ -24,12 +26,14 @@ EMPTY_RDB = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi
 
 class RedisCommandHandler:
 
-    def __init__(self):
+    def __init__(self, connection_registry=None):
         self.encoder = RedisEncoder()
         self.db = Database()
 
         self.replication_id = None
         self.replication_offset = None
+
+        self.connection_registry = connection_registry or ConnectionRegistry()
 
         is_replica = os.getenv("replicaof")
         if not is_replica:
@@ -138,7 +142,7 @@ class RedisCommandHandler:
 
         return self.encoder.encode_simple_string("OK")
 
-    def psync(self, args):
+    async def psync(self, args, writer):
         """
         Return fullresync response back to psync command.
         Dummy implementation for now
@@ -149,9 +153,23 @@ class RedisCommandHandler:
         ).encode('utf-8')
 
         empty_rdb = base64.b64decode(EMPTY_RDB)
+
+        # Asynchronously add replica to registry
+        await self.connection_registry.add_replica(
+            writer,
+            replication_id=self.replication_id,
+            offset=self.replication_offset
+        )
+
         return full_resync_command + self.encoder.encode_file(empty_rdb)
 
-    def handle(self, command_data):
+    async def write_to_replicas(self, data):
+        """
+        Write data to all registered replicas
+        """
+        await self.connection_registry.broadcast(data)
+
+    async def handle(self, command_data, writer=None):
 
         command_arr = RedisDecoder().decode(command_data)
 
@@ -176,5 +194,17 @@ class RedisCommandHandler:
         kls = kls_map.get(command)
         if not kls:
             raise RedisException("Invalid command")
+
+        # Commands which need to be broadcasted to the replicas
+        broadcast_set = {SET}
+
+        # Commands which need to be passed writer argument
+        writer_set = {PSYNC}
+
+        if command in broadcast_set:
+            await self.write_to_replicas(command_data)
+
+        if command in writer_set:
+            return await kls(command_arr, writer)
 
         return kls(command_arr)
