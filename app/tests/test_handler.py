@@ -8,6 +8,7 @@ from app.serialiser import RedisEncoder
 
 encoder = RedisEncoder()
 
+
 @pytest.mark.asyncio
 class TestHandler:
 
@@ -96,6 +97,11 @@ class TestHandler:
     async def test_replconf(self):
         handler = RedisCommandHandler()
         assert await handler.handle(encoder.encode_array(["REPLCONF", "capa", "psycn2"])) == "+OK\r\n"
+
+    async def test_replconf_getack_subcommand(self):
+        handler = RedisCommandHandler()
+        response = await handler.handle(encoder.encode_array(["REPLCONF", "getack", "subcommand"]))
+        assert response == encoder.encode_array(["REPLCONF", "ACK", "0"])
 
     async def test_psync(self):
         handler = RedisCommandHandler()

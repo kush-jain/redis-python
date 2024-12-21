@@ -134,12 +134,33 @@ class RedisCommandHandler:
 
         return info_map[subcommand]()
 
+    def replconf_getack(self, args):
+        """
+        Sends response back to replconf getack command.
+        """
+
+        return self.encoder.encode_array(["REPLCONF", "ACK", "0"])
+
     def replconf(self, args):
         """
         Sends response back to replconf command.
-        Currently, just send back OK - we need to add actual capabilities later on
         """
 
+        args = args or []
+
+        if not args:
+            raise RedisException("Currently, INFO command expects subcommand")
+
+        subcommand = args[0].lower()
+
+        replconf_map = {
+            "getack": self.replconf_getack,
+        }
+
+        if subcommand in replconf_map:
+            return replconf_map[subcommand](args[1:])
+
+        # If it doesn't match, send OK. We will add error handling later
         return self.encoder.encode_simple_string("OK")
 
     async def psync(self, args, writer):
@@ -225,7 +246,7 @@ class RedisCommandHandler:
         command_arr = RedisDecoder().multi_command_decoder(command_data)
 
         # Commands to which Replicas need to reply in case of propogation
-        reply_back_commands = {}
+        reply_back_commands = {REPLCONF}
 
         responses = []
 
@@ -236,7 +257,7 @@ class RedisCommandHandler:
 
             # Send back the response to the client
             # In case this is propogation, only send back replies when needed
-            if not propogated_command or command in reply_back_commands:
+            if not propogated_command or comm in reply_back_commands:
                 responses.append(response)
 
         return "".join(responses)
