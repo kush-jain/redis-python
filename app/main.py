@@ -47,7 +47,8 @@ async def run_server(port:int):
 
 
 async def run_replica(master_host: str, master_port: int, self_port: int):
-    replica = Replica(master_host, master_port, self_port)
+    handler = RedisCommandHandler()
+    replica = Replica(master_host, master_port, self_port, handler)
     await replica.handshake()
     await replica.listen_for_commands()
 

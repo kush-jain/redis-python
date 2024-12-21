@@ -3,14 +3,13 @@ import logging
 
 from app.serialiser import RedisEncoder, RedisDecoder
 from app.exceptions import RedisException
-from app.handler import RedisCommandHandler
 
 logger = logging.getLogger(__name__)
 
 
 class Replica:
 
-    def __init__(self, master_host, master_port, self_port):
+    def __init__(self, master_host, master_port, self_port, handler):
         self.master_host = master_host
         self.master_port = int(master_port)
         self.port = int(self_port)
@@ -18,6 +17,7 @@ class Replica:
         self.decoder = RedisDecoder()
         self.reader = None
         self.writer = None
+        self.handler = handler
 
     async def connect_to_master(self):
         """
@@ -33,6 +33,40 @@ class Replica:
         except Exception as e:
             raise RedisException(f"Connection failed: {e}") from e
 
+    async def process_command(self, data):
+        """
+        Process a command received from the master.
+
+        Args:
+            command (str): The command received from the master.
+
+        Returns:
+            str: The response to the command.
+
+        Raises:
+            RedisException: If the command is invalid or fails to process.
+        """
+
+        try:
+            decoded_data = data.decode("utf-8")
+        except UnicodeDecodeError:
+            logger.warning(f"Unable to decode data: {data}")
+            return
+
+        # Process the command
+        response = await self.handler.handle(decoded_data, propogated_command=True)
+
+        # Send response back if needed
+        if response:
+            if isinstance(response, str):
+                response = response.encode("utf-8")
+
+            try:
+                self.writer.write(response)
+                await self.writer.drain()
+            except Exception as send_error:
+                logger.error(f"Error sending response: {send_error}")
+
     async def listen_for_commands(self):
         """
         Continuously listen for commands sent by the master and
@@ -41,8 +75,6 @@ class Replica:
 
         if not self.reader or not self.writer:
             raise RedisException("Not connected to master")
-
-        handler = RedisCommandHandler()
 
         logger.info("Starting to listen for commands from master")
 
@@ -53,24 +85,7 @@ class Replica:
                 logger.warning("Connection closed by master")
                 raise RedisException("Connection closed by master")
 
-            try:
-                decoded_data = data.decode("utf-8")
-            except UnicodeDecodeError:
-                logger.warning(f"Unable to decode data: {data}")
-                continue
-
-            # Process the command
-            response = await handler.handle(decoded_data, propogated_command=True)
-
-            # Send response back if needed
-            if response:
-                if isinstance(response, str):
-                    response = response.encode("utf-8")
-
-                try:
-                    self.socket.sendall(response)
-                except Exception as send_error:
-                    logger.error(f"Error sending response: {send_error}")
+            await self.process_command(data)
 
     async def send_to_master(self, message):
         """
@@ -91,7 +106,7 @@ class Replica:
             return response.decode('utf-8')
         except UnicodeDecodeError:
             logger.warning("Unable to decode response %s", response)
-            return b""
+            return response
 
     async def handshake(self):
         """
@@ -150,4 +165,15 @@ class Replica:
         The second argument is the offset of the master
             Since this is the first time the replica is connecting to the master, the offset will be -1
         """
-        await self.send_to_master(self.encoder.encode_array(["PSYNC", "?", "-1"]))
+        response = await self.send_to_master(self.encoder.encode_array(["PSYNC", "?", "-1"]))
+
+        # Find Command till the RDB
+        rdb_position = response.find(b"REDIS0011")
+        rdb_end_position = response.find(b"\xff") + 8 + 1
+
+        response[:rdb_position].decode('utf-8')     # Full rsync
+        response[rdb_position: rdb_end_position]    # RDB
+        other_commands = response[rdb_end_position:]
+
+        if other_commands:
+            await self.process_command(other_commands)
