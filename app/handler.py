@@ -1,11 +1,10 @@
-import asyncio
 import base64
 from datetime import datetime, timedelta
 import fnmatch
 import os
 
 from app.connection_registry import ConnectionRegistry
-from app.serialiser import RedisEncoder, RedisDecoder
+from app.serialiser import RedisEncoder, RedisDecoder, TERMINATOR
 from app.exceptions import RedisException
 from app.database import Database
 from app.utils import gen_random_string
@@ -39,6 +38,8 @@ class RedisCommandHandler:
         if not self.is_replica:
             self.replication_id = gen_random_string(40)
             self.replication_offset = 0
+
+        self.bytes_processed = 0
 
     def ping(self, command_arr):
         return self.encoder.encode_simple_string("PONG")
@@ -139,7 +140,7 @@ class RedisCommandHandler:
         Sends response back to replconf getack command.
         """
 
-        return self.encoder.encode_array(["REPLCONF", "ACK", "0"])
+        return self.encoder.encode_array(["REPLCONF", "ACK", str(self.bytes_processed)])
 
     def replconf(self, args):
         """
@@ -250,7 +251,7 @@ class RedisCommandHandler:
 
         responses = []
 
-        for command in command_arr:
+        for command, comm_length in command_arr:
             comm, comm_arr = self.get_command(command)
             kls = self.get_command_kls(comm)
             response = kls(comm_arr)
@@ -259,6 +260,8 @@ class RedisCommandHandler:
             # In case this is propogation, only send back replies when needed
             if not propogated_command or comm in reply_back_commands:
                 responses.append(response)
+
+            self.bytes_processed += comm_length
 
         return "".join(responses)
 

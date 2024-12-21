@@ -11,15 +11,38 @@ class RedisDecoder:
     Decode Redis Request
     """
 
+    def __init__(self):
+        self.bytes_processed = 0
+
     def decode_simple_string(self, arr: list[str]):
+        """
+        Processing for example: "+OK\r\n"
+        So, bytes would len of +OK + terminator
+        """
+        self.bytes_processed += len(arr[0]) + len(TERMINATOR)
         return arr[0][1:], arr[1:]
 
     def decode_bulk_string(self, arr: list[str]):
+        """
+        Processing for example:
+        "$5\r\nhello\r\n"
+        So, len would be $5 + terminator + hello + terminator
+        """
+        # 2 for $<count>
+        self.bytes_processed += 2 + len(TERMINATOR) + len(arr[1]) + len(TERMINATOR)
         return arr[1], arr[2:]
 
     def decode_array(self, arr: list[str]):
+        """
+        Processing for example:
+        "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"
+        So, len would be 2 (for *<count>) + len of terminator
+        Each array element would be counted successfully in their own function
+        """
         val = []
         count = int(arr[0][1:])
+
+        self.bytes_processed += 2 + len(TERMINATOR)  # 1 byte for count integer
 
         rem_arr = arr[1:]
 
@@ -32,7 +55,7 @@ class RedisDecoder:
 
         return val, rem_arr
 
-    def multi_command_decoder(self, data):
+    def multi_command_decoder(self, data) -> list[(str, int)]:
         """
         Decode potentially multiple commands in a single Redis request string.
 
@@ -40,7 +63,7 @@ class RedisDecoder:
             data (str): Redis request string containing one or more commands
 
         Returns:
-            list: List of decoded commands
+            list: Each element is tuple of command with length of command
         """
         arr = data.split(TERMINATOR)
         if arr[-1] == "":
@@ -57,11 +80,8 @@ class RedisDecoder:
 
             # Add the decoded command to the list
             if command is not None:
-                commands.append(command)
-
-            # If no more data, break the loop
-            if not arr:
-                break
+                commands.append((command, self.bytes_processed))
+                self.bytes_processed = 0  # Reset byte count for next command
 
         return commands
 
@@ -90,7 +110,6 @@ class RedisDecoder:
             Any: The decoded Python object.
             Array: The remaining data after decoding.
         """
-
 
         resp_type = arr[0]
 
