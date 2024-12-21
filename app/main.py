@@ -39,11 +39,67 @@ async def handle_client(reader, writer):
         await writer.wait_closed()
 
 
-async def main(port):
+async def run_server(port:int):
     server = await asyncio.start_server(handle_client, "localhost", port)
 
     async with server:
         await server.serve_forever()
+
+
+async def run_replica(master_host: str, master_port: int, self_port: int):
+    replica = Replica(master_host, master_port, self_port)
+    await replica.handshake()
+    await replica.listen_for_commands()
+
+
+async def main(args):
+
+    tasks = []
+
+    if args.dir:
+        os.environ["dir"] = args.dir
+
+    if args.dbfilename:
+        os.environ["dbfilename"] = args.dbfilename
+
+    # Always add the server task
+    server_task = asyncio.create_task(run_server(args.port))
+    tasks.append(server_task)
+
+    if args.replicaof:
+        os.environ["replicaof"] = args.replicaof
+        master_host, master_port = args.replicaof.split()
+        replica_task = asyncio.create_task(run_replica(master_host, master_port, args.port))
+        tasks.append(replica_task)
+
+    db_data = {}
+
+    if args.dbfilename:
+        rdb = RDBParser(args.dir, args.dbfilename)
+        db_data = rdb.databases[0] if rdb.databases else {}
+
+    Database(db_data)
+
+    # Wait for either task to complete (or fail)
+    done, pending = await asyncio.wait(
+        tasks,
+        return_when=asyncio.FIRST_COMPLETED
+    )
+
+    # If we get here, one of the tasks completed or failed
+    for task in done:
+        try:
+            await task
+        except Exception as e:
+            print(f"Task failed with error: {e}")
+
+    # Cancel any remaining tasks
+    for task in pending:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 if __name__ == "__main__":
@@ -57,26 +113,4 @@ if __name__ == "__main__":
         help="If this is specified, it is assumed that this is slave replica. '<Master HOST> <Master PORT>' is needed")
     args = parser.parse_args()
 
-    if args.dir:
-        os.environ["dir"] = args.dir
-
-    if args.dbfilename:
-        os.environ["dbfilename"] = args.dbfilename
-
-    if args.replicaof:
-        os.environ["replicaof"] = args.replicaof
-        master_host, master_port = args.replicaof.split()
-
-        replica = Replica(master_host, master_port, args.port)
-        replica.handshake()
-        replica.close_connection()
-
-    db_data = {}
-
-    if args.dbfilename:
-        rdb = RDBParser(args.dir, args.dbfilename)
-        db_data = rdb.databases[0] if rdb.databases else {}
-
-    Database(db_data)
-
-    asyncio.run(main(args.port))
+    asyncio.run(main(args))

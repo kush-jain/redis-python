@@ -1,8 +1,9 @@
-import socket
+import asyncio
 import logging
 
 from app.serialiser import RedisEncoder, RedisDecoder
 from app.exceptions import RedisException
+from app.handler import RedisCommandHandler
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +16,10 @@ class Replica:
         self.port = int(self_port)
         self.encoder = RedisEncoder()
         self.decoder = RedisDecoder()
-        self.socket = None
+        self.reader = None
+        self.writer = None
 
-    def connect_to_master(self):
+    async def connect_to_master(self):
         """
         Establish a persistent connection to the master.
 
@@ -25,24 +27,52 @@ class Replica:
             RedisException: If connection fails
         """
         try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.connect((self.master_host, self.master_port))
+            self.reader, self.writer = await asyncio.open_connection(
+                self.master_host, self.master_port
+            )
         except Exception as e:
             raise RedisException(f"Connection failed: {e}") from e
 
-    def close_connection(self):
+    async def listen_for_commands(self):
         """
-        Safely close the socket connection.
+        Continuously listen for commands sent by the master and
+        process them using RedisCommandHandler.
         """
-        if self.socket:
-            try:
-                self.socket.close()
-            except Exception as e:
-                print("Error closing socket: %s", {e})
-            finally:
-                self.socket = None
 
-    def send_to_master(self, message):
+        if not self.reader or not self.writer:
+            raise RedisException("Not connected to master")
+
+        handler = RedisCommandHandler()
+
+        logger.info("Starting to listen for commands from master")
+
+        while True:
+            data = await self.reader.read(1024)
+
+            if not data:
+                logger.warning("Connection closed by master")
+                raise RedisException("Connection closed by master")
+
+            try:
+                decoded_data = data.decode("utf-8")
+            except UnicodeDecodeError:
+                logger.warning(f"Unable to decode data: {data}")
+                continue
+
+            # Process the command
+            response = await handler.handle(decoded_data)
+
+            # Send response back if needed
+            if response:
+                if isinstance(response, str):
+                    response = response.encode("utf-8")
+
+                try:
+                    self.socket.sendall(response)
+                except Exception as send_error:
+                    logger.error(f"Error sending response: {send_error}")
+
+    async def send_to_master(self, message):
         """
         Send data to a TCP socket.
 
@@ -50,8 +80,10 @@ class Replica:
             message (str/bytes): Data to be sent
         """
 
-        self.socket.sendall(message.encode('utf-8'))
-        response = self.socket.recv(1024)
+        self.writer.write(message.encode('utf-8'))
+        await self.writer.drain()
+
+        response = await self.reader.read(1024)
         if not response:
             raise RedisException("No response received from master")
 
@@ -61,7 +93,7 @@ class Replica:
             logger.warning("Unable to decode response %s", response)
             return b""
 
-    def handshake(self):
+    async def handshake(self):
         """
         Handshake process with master
 
@@ -72,18 +104,18 @@ class Replica:
             The replica sends PSYNC to the master
         """
 
-        self.connect_to_master()
-        self.ping()
-        self.replconf()
-        self.psync()
+        await self.connect_to_master()
+        await self.ping()
+        await self.replconf()
+        await self.psync()
 
-    def ping(self):
-        response = self.send_to_master(self.encoder.encode_array(["PING"]))
+    async def ping(self):
+        response = await self.send_to_master(self.encoder.encode_array(["PING"]))
         if self.decoder.decode(response) != "PONG":
             logger.warning("Failed to receive PONG")
 
 
-    def replconf(self):
+    async def replconf(self):
         """
         Send REPLCONF commands to configure replication.
 
@@ -91,20 +123,20 @@ class Replica:
         2. Declare replication capabilities
         """
         # Send listening port configuration
-        resp = self.send_to_master(
+        resp = await self.send_to_master(
             self.encoder.encode_array(["REPLCONF", "listening-port", str(self.port)])
         )
         if self.decoder.decode(resp)!= "OK":
             logger.warning("Failed to set listening port")
 
         # Send capabilities
-        resp = self.send_to_master(
+        resp = await self.send_to_master(
             self.encoder.encode_array(["REPLCONF", "capa", "psync2"])
         )
         if self.decoder.decode(resp)!= "OK":
             logger.warning("Failed to set replication capabilities")
 
-    def psync(self):
+    async def psync(self):
         """
         Initiate replication to master
 
@@ -118,4 +150,4 @@ class Replica:
         The second argument is the offset of the master
             Since this is the first time the replica is connecting to the master, the offset will be -1
         """
-        self.send_to_master(self.encoder.encode_array(["PSYNC", "?", "-1"]))
+        await self.send_to_master(self.encoder.encode_array(["PSYNC", "?", "-1"]))
