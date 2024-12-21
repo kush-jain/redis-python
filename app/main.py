@@ -80,26 +80,27 @@ async def main(args):
 
     Database(db_data)
 
-    # Wait for either task to complete (or fail)
-    done, pending = await asyncio.wait(
-        tasks,
-        return_when=asyncio.FIRST_COMPLETED
-    )
+    # Keep track of completed tasks
+    while tasks:
+        done, pending = await asyncio.wait(
+            tasks,
+            return_when=asyncio.FIRST_COMPLETED
+        )
 
-    # If we get here, one of the tasks completed or failed
-    for task in done:
-        try:
-            await task
-        except Exception as e:
-            print(f"Task failed with error: {e}")
+        for task in done:
+            try:
+                await task
+            except Exception as e:
+                print(f"Task failed with error: {e}")
 
-    # Cancel any remaining tasks
-    for task in pending:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+            # Remove completed task
+            tasks.remove(task)
+
+        # Ensure server task keeps running
+        if server_task not in tasks and not server_task.done():
+            tasks.append(server_task)
+
+        # If replica task failed or completed, it won't be restarted automatically
 
 
 if __name__ == "__main__":
