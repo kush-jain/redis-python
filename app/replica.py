@@ -60,7 +60,7 @@ class Replica:
                 continue
 
             # Process the command
-            response = await handler.handle(decoded_data)
+            response = await handler.handle(decoded_data, propogated_command=True)
 
             # Send response back if needed
             if response:

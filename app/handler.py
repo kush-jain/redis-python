@@ -61,9 +61,6 @@ class RedisCommandHandler:
 
         self.db.set(key, value, expires_at)
 
-        if self.is_replica:
-            return None
-
         return self.encoder.encode_simple_string("OK")
 
     def get(self, key):
@@ -221,11 +218,14 @@ class RedisCommandHandler:
 
         return kls(command_arr)
 
-    def handle_replica(self, command_data):
+    def handle_replica(self, command_data, propogated_command):
         """
         If it is replica, it might get multiple Write commands
         """
         command_arr = RedisDecoder().multi_command_decoder(command_data)
+
+        # Commands to which Replicas need to reply in case of propogation
+        reply_back_commands = {}
 
         responses = []
 
@@ -233,16 +233,22 @@ class RedisCommandHandler:
             comm, comm_arr = self.get_command(command)
             kls = self.get_command_kls(comm)
             response = kls(comm_arr)
-            if response:
+
+            # Send back the response to the client
+            # In case this is propogation, only send back replies when needed
+            if not propogated_command or command in reply_back_commands:
                 responses.append(response)
 
         return "".join(responses)
 
-    async def handle(self, command_data, writer=None):
+    async def handle(self, command_data, writer=None, propogated_command:bool=False):
         """
         Handle commands from master or replica
+
+        Args:
+            propogated_command: Is this command propogated from master to replica?
         """
         if self.is_replica:
-            return self.handle_replica(command_data)
+            return self.handle_replica(command_data, propogated_command)
 
         return await self.handle_master_command(command_data, writer)
