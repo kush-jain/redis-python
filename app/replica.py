@@ -54,7 +54,7 @@ class Replica:
             return
 
         # Process the command
-        response = await self.handler.handle(decoded_data, propogated_command=True)
+        response = await self.handler.handle(decoded_data, propogated_command=True, writer=self.writer)
 
         # Send response back if needed
         if response:

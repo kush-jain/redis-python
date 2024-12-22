@@ -43,7 +43,7 @@ Clients can send multiple requests as needed
 5. Limited CONFIG GET Command
 6. For GET and KEYS, can read from RDB file. Defaults to DB zero
 7. INFO Command basic support
-8. WAIT Command basic support
+8. WAIT Command
 
 ### Command Line Options
 

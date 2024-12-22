@@ -1,3 +1,4 @@
+import asyncio
 import base64
 from datetime import datetime, timedelta
 import fnmatch
@@ -136,12 +137,53 @@ class RedisCommandHandler:
 
         return info_map[subcommand]()
 
-    def wait(self, args):
+    async def wait(self, args):
         """
-        Sends response back to wait command.
+        Sends response back to wait command with continuous checking for replica sync.
+        Exits when either the required number of replicas are synced or timeout is reached.
+
+        Args:
+            args[0]: Required minimum number of synced replicas
+            args[1]: Timeout in milliseconds
         """
-        replica_count = len(self.connection_registry.get_replicas())
-        return self.encoder.encode_integer(replica_count)
+        required_min_sync = int(args[0])
+        timeout_ms = int(args[1])
+        timeout_seconds = timeout_ms / 1000.0  # Convert milliseconds to seconds
+
+        # Capture the current offset before sending REPLCONF
+        # This ensures we wait for all writes that occurred before the WAIT command
+        target_offset = self.replication_offset
+
+        if target_offset == 0:
+            return self.encoder.encode_integer(len(self.connection_registry.get_replicas()))
+
+        # Calculate when the timeout will occur
+        start_time = asyncio.get_event_loop().time()
+        end_time = start_time + timeout_seconds
+
+        # Send initial GETACK command to all replicas
+        await self.write_to_replicas(self.encoder.encode_array(["REPLCONF", "GETACK", "*"]))
+
+        while True:
+            # Check current sync status
+            replicas_synced = self.connection_registry.check_replica_sync(target_offset)
+
+            # If we have enough synced replicas, return immediately
+            if replicas_synced >= required_min_sync:
+                return self.encoder.encode_integer(replicas_synced)
+
+            # Check if we've exceeded the timeout
+            current_time = asyncio.get_event_loop().time()
+            if current_time >= end_time:
+                return self.encoder.encode_integer(replicas_synced)
+
+            # Calculate how long to wait before next check
+            # Use a small interval (e.g., 100ms) but don't exceed remaining timeout
+            remaining_time = end_time - current_time
+            wait_time = min(0.1, remaining_time)  # 100ms check interval
+
+            # Wait before next check
+            await asyncio.sleep(wait_time)
 
     def replconf_getack(self, args):
         """
@@ -150,7 +192,15 @@ class RedisCommandHandler:
 
         return self.encoder.encode_array(["REPLCONF", "ACK", str(self.bytes_processed)])
 
-    def replconf(self, args):
+    async def replconf_ack(self, args, writer):
+        """
+        Once master recives an acknowledgement,
+        it updates the correct offset
+        """
+
+        await self.connection_registry.update_replica_offset(writer, int(args[0]))
+
+    async def replconf(self, args, writer=None):
         """
         Sends response back to replconf command.
         """
@@ -158,16 +208,15 @@ class RedisCommandHandler:
         args = args or []
 
         if not args:
-            raise RedisException("Currently, INFO command expects subcommand")
+            raise RedisException("Currently, REPLCONF command expects subcommand")
 
         subcommand = args[0].lower()
 
-        replconf_map = {
-            "getack": self.replconf_getack,
-        }
+        if subcommand == "getack":
+            return self.replconf_getack(args[1:])
 
-        if subcommand in replconf_map:
-            return replconf_map[subcommand](args[1:])
+        if subcommand == "ack":
+            return await self.replconf_ack(args[1:], writer)
 
         # If it doesn't match, send OK. We will add error handling later
         return self.encoder.encode_simple_string("OK")
@@ -175,7 +224,6 @@ class RedisCommandHandler:
     async def psync(self, args, writer):
         """
         Return fullresync response back to psync command.
-        Dummy implementation for now
         """
 
         full_resync_command = self.encoder.encode_simple_string(
@@ -198,6 +246,7 @@ class RedisCommandHandler:
         Write data to all registered replicas
         """
         await self.connection_registry.broadcast(data)
+        self.replication_offset += len(data)
 
     def get_command(self, command_arr):
         command = command_arr
@@ -242,14 +291,19 @@ class RedisCommandHandler:
             await self.write_to_replicas(command_data)
 
         # Commands which need to be passed writer argument
-        writer_set = {PSYNC}
+        writer_set = {PSYNC, REPLCONF}
 
         if command in writer_set:
             return await kls(command_arr, writer)
 
+        # Commands which need to be run async
+        async_set = {WAIT}
+        if command in async_set:
+            return await kls(command_arr)
+
         return kls(command_arr)
 
-    def handle_replica(self, command_data, propogated_command):
+    async def handle_replica(self, command_data, propogated_command):
         """
         If it is replica, it might get multiple Write commands
         """
@@ -257,13 +311,18 @@ class RedisCommandHandler:
 
         # Commands to which Replicas need to reply in case of propogation
         reply_back_commands = {REPLCONF}
+        async_commands = {REPLCONF}
 
         responses = []
 
         for command, comm_length in command_arr:
             comm, comm_arr = self.get_command(command)
             kls = self.get_command_kls(comm)
-            response = kls(comm_arr)
+
+            if comm in async_commands:
+                response = await kls(comm_arr)
+            else:
+                response = kls(comm_arr)
 
             # Send back the response to the client
             # In case this is propogation, only send back replies when needed
@@ -282,6 +341,6 @@ class RedisCommandHandler:
             propogated_command: Is this command propogated from master to replica?
         """
         if self.is_replica:
-            return self.handle_replica(command_data, propogated_command)
+            return await self.handle_replica(command_data, propogated_command)
 
         return await self.handle_master_command(command_data, writer)

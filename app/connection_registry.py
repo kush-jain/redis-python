@@ -41,6 +41,15 @@ class ConnectionRegistry:
         """
         return self._replicas.copy()
 
+    async def update_replica_offset(self, writer, offset):
+        """
+        Update the offset for a specific replica
+        """
+        for replica in self._replicas:
+            if replica['writer'] == writer:
+                replica['offset'] = offset
+                break
+
     async def broadcast(self, data):
         """
         Broadcast data to all registered replicas
@@ -62,3 +71,10 @@ class ConnectionRegistry:
             # Wait for all send operations to complete
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)
+
+    def check_replica_sync(self, offset):
+        """
+        Check how many replicas are synced to given offset
+        """
+
+        return sum(1 for replica in self._replicas if replica['offset'] >= offset)
