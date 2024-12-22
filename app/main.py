@@ -92,7 +92,7 @@ async def main(args):
             try:
                 await task
             except Exception as e:
-                print(f"Task failed with error: {e}")
+                raise e
 
             # Remove completed task
             tasks.remove(task)
