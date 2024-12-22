@@ -3,21 +3,29 @@ from app.serialiser import RedisDecoder, RedisEncoder
 
 class TestRedisDecoder:
     def test_simple_string(self):
-        assert RedisDecoder().decode("+OK\r\n") == "OK"
+        decoder = RedisDecoder()
+        assert decoder.decode("+OK\r\n") == "OK"
+        assert decoder.bytes_processed == 5
 
     def test_bulk_string(self):
-        assert RedisDecoder().decode("$5\r\nhello\r\n") == "hello"
+        decoder = RedisDecoder()
+        assert decoder.decode("$5\r\nhello\r\n") == "hello"
+        assert decoder.bytes_processed == 11
 
     def test_array(self):
-        assert RedisDecoder().decode("*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n") == ["foo", "bar"]
+        decoder = RedisDecoder()
+        assert decoder.decode("*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n") == ["foo", "bar"]
+        assert decoder.bytes_processed == 22
 
     def test_multi_command_decoder_single_command(self):
-        assert RedisDecoder().multi_command_decoder("*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n") == [["foo", "bar"]]
+        assert RedisDecoder().multi_command_decoder(
+            "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"
+        ) == [(["foo", "bar"], 22)]
 
     def test_multi_command_decoder_multi_command(self):
         assert RedisDecoder().multi_command_decoder(
             "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"
-        ) == [["foo", "bar"], ["foo", "bar"]]
+        ) == [(["foo", "bar"], 22), (["foo", "bar"], 22)]
 
 
 class TestRedisEncoder:
