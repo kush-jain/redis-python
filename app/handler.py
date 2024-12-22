@@ -7,7 +7,7 @@ import os
 from app.connection_registry import ConnectionRegistry
 from app.serialiser import RedisEncoder, RedisDecoder
 from app.exceptions import RedisException
-from app.database import Database
+from app.database import Database, RedisDBException, STREAM
 from app.utils import gen_random_string
 
 
@@ -76,7 +76,14 @@ class RedisCommandHandler:
         id = args[1]
         key_value_pairs = args[2:]
 
-        self.db.stream_add(stream_key, id, *key_value_pairs)
+        try:
+            self.db.stream_add(stream_key, id, *key_value_pairs)
+        except RedisDBException as exc:
+            if exc.module == STREAM and exc.code == "small-top":
+                raise RedisException("The ID specified in XADD is equal or smaller than the target stream top item")
+            if exc.module == STREAM and exc.code == "small-first":
+                raise RedisException("The ID specified in XADD must be greater than 0-0")
+
         return self.encoder.encode_bulk_string(id)
 
     def get(self, key):
@@ -94,7 +101,7 @@ class RedisCommandHandler:
 
         if isinstance(value, str):
             value_type = "string"
-        elif isinstance(value, dict) and value.get("type") == "stream":
+        elif isinstance(value, dict) and value.get("type") == STREAM:
             value_type = "stream"
 
         return self.encoder.encode_simple_string(value_type)
@@ -368,7 +375,11 @@ class RedisCommandHandler:
         Args:
             propogated_command: Is this command propogated from master to replica?
         """
-        if self.is_replica:
-            return await self.handle_replica(command_data, propogated_command)
 
-        return await self.handle_master_command(command_data, writer)
+        try:
+            if self.is_replica:
+                return await self.handle_replica(command_data, propogated_command)
+
+            return await self.handle_master_command(command_data, writer)
+        except RedisException as exc:
+            return self.encoder.encode_error(f"{str(exc)}")

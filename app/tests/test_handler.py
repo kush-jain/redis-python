@@ -43,6 +43,25 @@ class TestHandler:
             "0-2": {"field1": "a", "field2": "b"},
         }
 
+    async def test_xadd_invalid_stream_id(self):
+        handler = RedisCommandHandler()
+        response = await handler.handle(encoder.encode_array(
+            ["XADD", "stream", "0-0", "field1", "value1", "field2", "value2"])
+        )
+        assert response == "-ERR The ID specified in XADD must be greater than 0-0\r\n"
+
+    async def test_xadd_invalid_stream_id_incremental(self):
+        handler = RedisCommandHandler()
+        response = await handler.handle(encoder.encode_array(
+            ["XADD", "stream", "1-5", "field1", "value1", "field2", "value2"])
+        )
+        assert response == encoder.encode_bulk_string("1-5")
+
+        response = await handler.handle(encoder.encode_array(
+            ["XADD", "stream", "1-3", "field1", "value1", "field2", "value2"])
+        )
+        assert response == "-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n"
+
     async def test_get(self):
         handler = RedisCommandHandler()
         await handler.handle(encoder.encode_array(["SET", "key", "value"]))

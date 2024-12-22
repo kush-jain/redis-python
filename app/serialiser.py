@@ -4,6 +4,7 @@ SIMPLE_STRING = "+"
 BULK_STRING = "$"
 ARRAY = "*"
 INTEGER = ":"
+ERROR = "-"
 
 
 
@@ -151,3 +152,10 @@ class RedisEncoder:
         Encode integer
         """
         return f"{INTEGER}{str(data)}{TERMINATOR}"
+
+    def encode_error(self, error_message, error_code=None):
+        """
+        Encode error
+        """
+        error_code = error_code or "ERR"
+        return f"{ERROR}{error_code} {error_message}{TERMINATOR}"
