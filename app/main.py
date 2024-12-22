@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import logging
 import os
 
 from app.connection_registry import ConnectionRegistry
@@ -7,6 +8,9 @@ from app.handler import RedisCommandHandler
 from app.rdb.parser import RDBParser
 from app.database import Database
 from app.replica import Replica
+
+
+logger = logging.getLogger(__name__)
 
 
 async def handle_client(reader, writer):
@@ -92,7 +96,7 @@ async def main(args):
             try:
                 await task
             except Exception as e:
-                raise e
+                logger.exception("Task failed", e)
 
             # Remove completed task
             tasks.remove(task)
