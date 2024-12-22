@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import Enum
 
 from app.exceptions import RedisException
-from app.utils import Singleton
+from app.utils import Singleton, StreamUtils
 
 STREAM = "stream"
 
@@ -53,37 +53,6 @@ class Database(metaclass=Singleton):
             "expires_at": expires,
         }
 
-    def compare_stream_ids(self, current_stream_id, incoming_stream_id):
-        """
-        Compare incoming stream_id with current stream_id.
-        Stream id is combination of two strings:
-            <a>-<b>
-            where <a> is timestamp in seconds and <b> is str representation of integer
-
-        incoming_stream_id should always be greater than current_stream_id.
-        First timestamp is compared, and if equal then integer part is compared
-        """
-
-        # Split both stream IDs into their components
-        current_timestamp, current_int = current_stream_id.split('-')
-        incoming_timestamp, incoming_int = incoming_stream_id.split('-')
-
-        # Convert components to appropriate types for comparison
-        current_timestamp = int(current_timestamp)
-        incoming_timestamp = int(incoming_timestamp)
-        current_int = int(current_int)
-        incoming_int = int(incoming_int)
-
-        # Compare timestamps first
-        if incoming_timestamp > current_timestamp:
-            return True
-
-        if incoming_timestamp == current_timestamp:
-            # If timestamps are equal, compare the integer part
-            return incoming_int > current_int
-
-        return False
-
     def stream_add(self, stream_key, stream_id, *args):
         """
         Add the stream_id to the stream_key
@@ -99,20 +68,24 @@ class Database(metaclass=Singleton):
         }
         """
 
-        if not self.compare_stream_ids("0-0", stream_id):
+        if not StreamUtils.compare_stream_ids("0-0", stream_id):
             raise RedisDBException(DBErrorCode.STREAM_ID_SMALLER_THAN_0)
 
         # First check if stream_key exists, if not, create one
         if stream_key not in self.data:
             self.data[stream_key] = OrderedDict(type=STREAM)
+            last_stream_id = "0-0"
         else:
             last_stream_id = next(reversed(self.data[stream_key]))
-            if not self.compare_stream_ids(last_stream_id, stream_id):
+            if not StreamUtils.compare_stream_ids(last_stream_id, stream_id):
                 raise RedisDBException(DBErrorCode.STREAM_ID_SMALLER_THAN_TOP)
+
+        stream_id = StreamUtils.generate_stream_id(stream_id, last_stream_id)
 
         # Args are key1, value1, key2, value2 format
         result = {args[i]: args[i + 1] for i in range(0, len(args), 2)}
         self.data[stream_key][stream_id] = result
+        return stream_id
 
     def get(self, key):
         value = self.data.get(key)

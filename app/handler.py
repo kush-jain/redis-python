@@ -77,14 +77,14 @@ class RedisCommandHandler:
         key_value_pairs = args[2:]
 
         try:
-            self.db.stream_add(stream_key, id, *key_value_pairs)
+            stream_id = self.db.stream_add(stream_key, id, *key_value_pairs)
         except RedisDBException as exc:
             if exc.module == STREAM and exc.code == "small-top":
                 raise RedisException("The ID specified in XADD is equal or smaller than the target stream top item")
             if exc.module == STREAM and exc.code == "small-first":
                 raise RedisException("The ID specified in XADD must be greater than 0-0")
 
-        return self.encoder.encode_bulk_string(id)
+        return self.encoder.encode_bulk_string(stream_id)
 
     def get(self, key):
 

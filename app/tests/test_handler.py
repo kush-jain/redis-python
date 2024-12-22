@@ -62,6 +62,22 @@ class TestHandler:
         )
         assert response == "-ERR The ID specified in XADD is equal or smaller than the target stream top item\r\n"
 
+    async def test_xadd_stream_id(self):
+        handler = RedisCommandHandler()
+        assert await handler.handle(
+            encoder.encode_array(["XADD", "stream", "0-*", "k", "v"])
+        ) == encoder.encode_bulk_string("0-1")
+        assert await handler.handle(
+            encoder.encode_array(["XADD", "stream", "0-*", "k", "v"])
+        ) == encoder.encode_bulk_string("0-2")
+
+        assert await handler.handle(
+            encoder.encode_array(["XADD", "stream", "5-3", "k", "v"])
+        ) == encoder.encode_bulk_string("5-3")
+        assert await handler.handle(
+            encoder.encode_array(["XADD", "stream", "5-*", "k", "v"])
+        ) == encoder.encode_bulk_string("5-4")
+
     async def test_get(self):
         handler = RedisCommandHandler()
         await handler.handle(encoder.encode_array(["SET", "key", "value"]))
