@@ -27,6 +27,19 @@ class TestRedisDecoder:
             "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"
         ) == [(["foo", "bar"], 22), (["foo", "bar"], 22)]
 
+    def test_complex_multi_command(self):
+        commands = [
+            "*3\r\n$8\r\nREPLCONF\r\n$6\r\nGETACK\r\n$1\r\n*\r\n",
+            "*3\r\n$3\r\nSET\r\n$5\r\nmango\r\n$9\r\nblueberry\r\n",
+            "*3\r\n$3\r\nSET\r\n$10\r\nstrawberry\r\n$9\r\nraspberry\r\n"
+        ]
+        response = RedisDecoder().multi_command_decoder("".join(commands))
+        assert response == [
+            (["REPLCONF", "GETACK", "*"], 37),
+            (["SET", "mango", "blueberry"], 39),
+            (["SET", "strawberry", "raspberry"], 45)
+        ]
+
 
 class TestRedisEncoder:
 

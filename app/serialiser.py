@@ -28,21 +28,20 @@ class RedisDecoder:
         "$5\r\nhello\r\n"
         So, len would be $5 + terminator + hello + terminator
         """
-        # 2 for $<count>
-        self.bytes_processed += 2 + len(TERMINATOR) + len(arr[1]) + len(TERMINATOR)
+        self.bytes_processed += len(arr[0]) + len(TERMINATOR) + len(arr[1]) + len(TERMINATOR)
         return arr[1], arr[2:]
 
     def decode_array(self, arr: list[str]):
         """
         Processing for example:
         "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"
-        So, len would be 2 (for *<count>) + len of terminator
+        So, len would be *<count> + len of terminator
         Each array element would be counted successfully in their own function
         """
         val = []
         count = int(arr[0][1:])
 
-        self.bytes_processed += 2 + len(TERMINATOR)  # 1 byte for count integer
+        self.bytes_processed += len(arr[0]) + len(TERMINATOR)
 
         rem_arr = arr[1:]
 
