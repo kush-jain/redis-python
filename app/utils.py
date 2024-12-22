@@ -80,9 +80,8 @@ class StreamUtils:
         """
 
         if incoming_stream_id == "*":
-            current_timestamp = int(time.time())
-            current_int = 1
-            return f"{current_timestamp}-{current_int}"
+            current_timestamp = time.time_ns() // 1_000_000
+            return f"{current_timestamp}-0"
 
         timestamp, sequence = incoming_stream_id.split("-")
 
