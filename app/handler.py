@@ -140,7 +140,8 @@ class RedisCommandHandler:
         """
         Sends response back to wait command.
         """
-        return self.encoder.encode_integer(0)
+        replica_count = len(self.connection_registry.get_replicas())
+        return self.encoder.encode_integer(replica_count)
 
     def replconf_getack(self, args):
         """
