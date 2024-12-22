@@ -32,6 +32,17 @@ class TestHandler:
         assert await handler.handle(encoder.encode_array(["SET", "key", "value"])) == "+OK\r\n"
         assert handler.db.get("key") == "value"
 
+    async def test_xadd(self):
+        handler = RedisCommandHandler()
+        await handler.handle(encoder.encode_array(["XADD", "stream", "0-1", "field1", "value1", "field2", "value2"]))
+        await handler.handle(encoder.encode_array(["XADD", "stream", "0-2", "field1", "a", "field2", "b"]))
+
+        assert handler.db.get("stream") == {
+            "type": "stream",
+            "0-1": {"field1": "value1", "field2": "value2"},
+            "0-2": {"field1": "a", "field2": "b"},
+        }
+
     async def test_get(self):
         handler = RedisCommandHandler()
         await handler.handle(encoder.encode_array(["SET", "key", "value"]))
@@ -117,6 +128,7 @@ class TestHandler:
         handler = RedisCommandHandler()
 
         await handler.handle(encoder.encode_array(["SET", "key1", "value1"]))
+        await handler.handle(encoder.encode_array(["XADD", "stream", "0-2", "field1", "a", "field2", "b"]))
 
         assert await handler.handle(
             encoder.encode_array(["TYPE", "key1"])
@@ -125,3 +137,7 @@ class TestHandler:
         assert await handler.handle(
             encoder.encode_array(["TYPE", "key2"])
         ) == encoder.encode_simple_string("none")
+
+        assert await handler.handle(
+            encoder.encode_array(["TYPE", "stream"])
+        ) == encoder.encode_simple_string("stream")

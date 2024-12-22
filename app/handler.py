@@ -14,6 +14,7 @@ from app.utils import gen_random_string
 PING = "ping"
 ECHO = "echo"
 SET = "set"
+XADD = "xadd"
 GET = "get"
 CONFIG = "config"
 KEYS = "keys"
@@ -67,6 +68,17 @@ class RedisCommandHandler:
 
         return self.encoder.encode_simple_string("OK")
 
+    def xadd(self, args):
+        """
+        Implement Redis XADD operation
+        """
+        stream_key = args[0]
+        id = args[1]
+        key_value_pairs = args[2:]
+
+        self.db.stream_add(stream_key, id, *key_value_pairs)
+        return self.encoder.encode_bulk_string(id)
+
     def get(self, key):
 
         key = key[0]
@@ -78,12 +90,13 @@ class RedisCommandHandler:
         key = key[0]
         value = self.db.get(key)
 
-        val_map = {
-            str: "string"
-        }
+        value_type = "none"
 
-        # Check the value type. Defaults to none
-        value_type = val_map.get(type(value), "none")
+        if isinstance(value, str):
+            value_type = "string"
+        elif isinstance(value, dict) and value.get("type") == "stream":
+            value_type = "stream"
+
         return self.encoder.encode_simple_string(value_type)
 
     def keys(self, pattern):
@@ -276,6 +289,7 @@ class RedisCommandHandler:
             PING: self.ping,
             ECHO: self.echo,
             SET: self.set,
+            XADD: self.xadd,
             GET: self.get,
             CONFIG: self.config,
             KEYS: self.keys,
