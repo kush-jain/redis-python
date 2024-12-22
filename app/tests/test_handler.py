@@ -5,12 +5,19 @@ import pytest
 
 from app.handler import RedisCommandHandler
 from app.serialiser import RedisEncoder
+from app.database import Database
 
 encoder = RedisEncoder()
+db = Database()
 
 
 @pytest.mark.asyncio
 class TestHandler:
+
+    @pytest.fixture(autouse=True)
+    def run_around_tests(self):
+        yield
+        db.clear()
 
     async def test_ping(self):
         handler = RedisCommandHandler()
@@ -59,9 +66,6 @@ class TestHandler:
     async def test_keys(self):
         handler = RedisCommandHandler()
 
-        # Reset DB
-        handler.db.clear()
-
         await handler.handle(encoder.encode_array(["SET", "key1", "value1"]))
         await handler.handle(encoder.encode_array(["SET", "key2", "value2"]))
         await handler.handle(encoder.encode_array(["SET", "key3", "value3"]))
@@ -107,3 +111,17 @@ class TestHandler:
         handler = RedisCommandHandler()
         resp = await handler.handle(encoder.encode_array(["psync", "master_replid", "offset"]), "writer")
         assert resp.startswith(b"+FULLRESYNC")
+
+    async def test_type(self):
+
+        handler = RedisCommandHandler()
+
+        await handler.handle(encoder.encode_array(["SET", "key1", "value1"]))
+
+        assert await handler.handle(
+            encoder.encode_array(["TYPE", "key1"])
+        ) == encoder.encode_simple_string("string")
+
+        assert await handler.handle(
+            encoder.encode_array(["TYPE", "key2"])
+        ) == encoder.encode_simple_string("none")

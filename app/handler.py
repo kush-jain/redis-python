@@ -21,6 +21,7 @@ INFO = "info"
 REPLCONF = "replconf"
 PSYNC = "psync"
 WAIT = "wait"
+TYPE = "type"
 
 EMPTY_RDB = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
 
@@ -72,6 +73,18 @@ class RedisCommandHandler:
         value = self.db.get(key)
 
         return self.encoder.encode_bulk_string(value)
+
+    def type(self, key):
+        key = key[0]
+        value = self.db.get(key)
+
+        val_map = {
+            str: "string"
+        }
+
+        # Check the value type. Defaults to none
+        value_type = val_map.get(type(value), "none")
+        return self.encoder.encode_simple_string(value_type)
 
     def keys(self, pattern):
         """
@@ -270,6 +283,7 @@ class RedisCommandHandler:
             REPLCONF: self.replconf,
             PSYNC: self.psync,
             WAIT: self.wait,
+            TYPE: self.type,
         }
         kls = kls_map.get(command)
         if not kls:

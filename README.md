@@ -38,7 +38,7 @@ Clients can send multiple requests as needed
 
 1. PING and ECHO commands
 2. SET Command with limited expiry support. Only ACTIVE expiry possible
-3. GET Command
+3. GET and TYPE Command
 4. KEYS Command
 5. Limited CONFIG GET Command
 6. For GET and KEYS, can read from RDB file. Defaults to DB zero
