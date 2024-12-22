@@ -3,6 +3,7 @@ TERMINATOR = "\r\n"
 SIMPLE_STRING = "+"
 BULK_STRING = "$"
 ARRAY = "*"
+INTEGER = ":"
 
 
 
@@ -144,3 +145,9 @@ class RedisEncoder:
         """
 
         return f"{BULK_STRING}{len(data)}{TERMINATOR}".encode("utf-8") + data
+
+    def encode_integer(self, data):
+        """
+        Encode integer
+        """
+        return f"{INTEGER}{str(data)}{TERMINATOR}"

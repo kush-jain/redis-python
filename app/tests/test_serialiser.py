@@ -54,3 +54,6 @@ class TestRedisEncoder:
 
     def test_array(self):
         assert RedisEncoder().encode_array(["foo", "bar"]) == "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"
+
+    def test_integer(self):
+        assert RedisEncoder().encode_integer(123) == ":123\r\n"
