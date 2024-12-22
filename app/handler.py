@@ -4,7 +4,7 @@ import fnmatch
 import os
 
 from app.connection_registry import ConnectionRegistry
-from app.serialiser import RedisEncoder, RedisDecoder, TERMINATOR
+from app.serialiser import RedisEncoder, RedisDecoder
 from app.exceptions import RedisException
 from app.database import Database
 from app.utils import gen_random_string
@@ -19,6 +19,7 @@ KEYS = "keys"
 INFO = "info"
 REPLCONF = "replconf"
 PSYNC = "psync"
+WAIT = "wait"
 
 EMPTY_RDB = "UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog=="
 
@@ -135,6 +136,12 @@ class RedisCommandHandler:
 
         return info_map[subcommand]()
 
+    def wait(self, args):
+        """
+        Sends response back to wait command.
+        """
+        return self.encoder.encode_integer(0)
+
     def replconf_getack(self, args):
         """
         Sends response back to replconf getack command.
@@ -212,6 +219,7 @@ class RedisCommandHandler:
             INFO: self.info,
             REPLCONF: self.replconf,
             PSYNC: self.psync,
+            WAIT: self.wait,
         }
         kls = kls_map.get(command)
         if not kls:

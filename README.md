@@ -41,7 +41,9 @@ Clients can send multiple requests as needed
 3. GET Command
 4. KEYS Command
 5. Limited CONFIG GET Command
-6. For GET and KEYS, can read from RDB file.
+6. For GET and KEYS, can read from RDB file. Defaults to DB zero
+7. INFO Command basic support
+8. WAIT Command basic support
 
 ### Command Line Options
 
@@ -80,3 +82,7 @@ RealPython Resources: <https://realpython.com/python-concurrency/> and <https://
 
 <https://rdb.fnordig.de/file_format.html> - This was almost always open while I was working on the parsing logic for RDB
 [RDB Parser Tool](https://github.com/sripathikrishnan/redis-rdb-tools/blob/master/rdbtools/parser.py) This repo served as reference whenever I hitted a wall
+
+### Redis Protocol
+
+<https://redis.io/docs/latest/develop/reference/protocol-spec/>
