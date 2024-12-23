@@ -21,6 +21,7 @@ XRANGE = "xrange"
 XREAD = "xread"
 MULTI = "multi"
 EXEC = "exec"
+DISCARD = "discard"
 CONFIG = "config"
 KEYS = "keys"
 INFO = "info"
@@ -415,6 +416,15 @@ class RedisCommandHandler:
 
         return responses, RedisType.ARRAY
 
+    async def discard(self, args):
+
+        if self.transaction_queue is None:
+            raise RedisException("DISCARD without MULTI")
+
+        self.transaction_queue = None  # Clear the transaction queue
+
+        return "OK", RedisType.SIMPLE_STRING
+
     ##### Functions which handle meta-logic ####################
 
     async def write_to_replicas(self, data):
@@ -446,6 +456,7 @@ class RedisCommandHandler:
             XREAD: self.xread,
             MULTI: self.multi,
             EXEC: self.exec,
+            DISCARD: self.discard,
             CONFIG: self.config,
             KEYS: self.keys,
             INFO: self.info,
@@ -469,6 +480,10 @@ class RedisCommandHandler:
             if command == EXEC:
                 return await self.exec(command_arg)
 
+            # Discard Transaction
+            if command == DISCARD:
+                return await self.discard(command_arg)
+
             self.transaction_queue.append((command, command_arg))
             return "QUEUED", RedisType.SIMPLE_STRING
 
@@ -476,7 +491,7 @@ class RedisCommandHandler:
         writer_set = {PSYNC, REPLCONF}
 
         # Commands which need to be run async
-        async_commands = {WAIT, XREAD, EXEC}
+        async_commands = {WAIT, XREAD, EXEC, DISCARD}
 
         kls = self.get_command_kls(command)
 
