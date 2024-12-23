@@ -50,7 +50,10 @@ class Replica:
         try:
             decoded_data = data.decode("utf-8")
         except UnicodeDecodeError:
-            logger.warning(f"Unable to decode data: {data}")
+            commands = self.complex_decode(data)
+            if commands:
+                return await self.process_command(commands)
+            logger.warning("Unable to decode data: %s", data)
             return
 
         # Process the command
@@ -105,7 +108,9 @@ class Replica:
         try:
             return response.decode('utf-8')
         except UnicodeDecodeError:
-            logger.warning("Unable to decode response %s", response)
+            commands = self.complex_decode(response)
+            if commands:
+                await self.process_command(commands)
             return response
 
     async def handshake(self):
@@ -128,7 +133,6 @@ class Replica:
         response = await self.send_to_master(self.encoder.encode_array(["PING"]))
         if self.decoder.decode(response) != "PONG":
             logger.warning("Failed to receive PONG")
-
 
     async def replconf(self):
         """
@@ -165,18 +169,19 @@ class Replica:
         The second argument is the offset of the master
             Since this is the first time the replica is connecting to the master, the offset will be -1
         """
-        response = await self.send_to_master(self.encoder.encode_array(["PSYNC", "?", "-1"]))
+        await self.send_to_master(self.encoder.encode_array(["PSYNC", "?", "-1"]))
 
-        if isinstance(response, str):
-            response = response.encode("utf-8")
+    def complex_decode(self, response):
+        """
+        If the command has RDB file, we need to decode it
+        """
 
         # Find Command till the RDB
         rdb_position = response.find(b"REDIS0011")
         rdb_end_position = response.find(b"\xff") + 8 + 1
 
-        response[:rdb_position].decode('utf-8')     # Full rsync
+        response[:rdb_position].decode('utf-8')
         response[rdb_position: rdb_end_position]    # RDB
         other_commands = response[rdb_end_position:]
 
-        if other_commands:
-            await self.process_command(other_commands)
+        return other_commands
