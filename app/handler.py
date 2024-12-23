@@ -21,6 +21,7 @@ XADD = "xadd"
 XRANGE = "xrange"
 XREAD = "xread"
 MULTI = "multi"
+EXEC = "exec"
 CONFIG = "config"
 KEYS = "keys"
 INFO = "info"
@@ -399,6 +400,11 @@ class RedisCommandHandler:
 
         return self.encoder.encode_simple_string("OK")
 
+    def exec(self, args):
+
+        if self.transaction_queue is None:
+            raise RedisException("EXEC without MULTI")
+
     ##### Functions which handle meta-logic ####################
 
     async def write_to_replicas(self, data):
@@ -429,6 +435,7 @@ class RedisCommandHandler:
             XRANGE: self.xrange,
             XREAD: self.xread,
             MULTI: self.multi,
+            EXEC: self.exec,
             CONFIG: self.config,
             KEYS: self.keys,
             INFO: self.info,
