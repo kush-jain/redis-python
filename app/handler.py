@@ -108,15 +108,20 @@ class RedisCommandHandler:
         Returns:
             Encoded array containing stream keys and their respective data.
         """
-        if not isinstance(args, list) or len(args) < 3 or (len(args) - 1) % 2 != 0:
-            raise RedisException("Invalid arguments. Expected stream keys and corresponding start IDs.")
+        if not isinstance(args, list) or "streams" not in args:
+            raise RedisException("Invalid arguments. Expected streams in argument list")
 
-        num_streams = (len(args) - 1) // 2
-        stream_keys = args[1:num_streams + 1]
-        start_ids = args[num_streams + 1:]
+        # Find the index of "streams"
+        streams_index = args.index("streams")
+        stream_args = args[streams_index + 1:]
 
-        if len(stream_keys) != len(start_ids):
+        # Extract stream keys and IDs
+        if len(stream_args) % 2 != 0:
             raise RedisException("The number of stream keys must match the number of start IDs.")
+
+        num_streams = len(stream_args) // 2
+        stream_keys = stream_args[:num_streams]
+        start_ids = stream_args[num_streams:]
 
         combined_response = []
 
