@@ -167,6 +167,9 @@ class Replica:
         """
         response = await self.send_to_master(self.encoder.encode_array(["PSYNC", "?", "-1"]))
 
+        if isinstance(response, str):
+            response = response.encode("utf-8")
+
         # Find Command till the RDB
         rdb_position = response.find(b"REDIS0011")
         rdb_end_position = response.find(b"\xff") + 8 + 1
