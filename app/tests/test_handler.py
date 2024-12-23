@@ -78,6 +78,70 @@ class TestHandler:
             encoder.encode_array(["XADD", "stream", "5-*", "k", "v"])
         ) == encoder.encode_bulk_string("5-4")
 
+    async def test_xrange_explicit(self):
+
+        handler = RedisCommandHandler()
+        await handler.handle(encoder.encode_array(["XADD", "stream", "5-2", "k", "2"]))
+        await handler.handle(encoder.encode_array(["XADD", "stream", "5-3", "k", "3"]))
+        await handler.handle(encoder.encode_array(["XADD", "stream", "5-5", "k", "5"]))
+        await handler.handle(encoder.encode_array(["XADD", "stream", "5-6", "k", "6"]))
+        await handler.handle(encoder.encode_array(["XADD", "stream", "5-7", "k", "6"]))
+
+        response = await handler.handle(encoder.encode_array(["XRANGE", "stream", "5-3", "5-6"]))
+
+        expected_response = [
+            "*3\r\n",
+            "*2\r\n",
+            "$3\r\n5-3\r\n",
+            "*2\r\n",
+            "$1\r\nk\r\n",
+            "$1\r\n3\r\n",
+            "*2\r\n",
+            "$3\r\n5-5\r\n",
+            "*2\r\n",
+            "$1\r\nk\r\n",
+            "$1\r\n5\r\n",
+            "*2\r\n",
+            "$3\r\n5-6\r\n",
+            "*2\r\n",
+            "$1\r\nk\r\n",
+            "$1\r\n6\r\n",
+        ]
+
+        assert response == "".join(expected_response)
+
+    async def test_xrange_implicit(self):
+
+        handler = RedisCommandHandler()
+        await handler.handle(encoder.encode_array(["XADD", "stream", "4-2", "k", "2"]))
+        await handler.handle(encoder.encode_array(["XADD", "stream", "5-3", "k", "3"]))
+        await handler.handle(encoder.encode_array(["XADD", "stream", "5-5", "k", "5"]))
+        await handler.handle(encoder.encode_array(["XADD", "stream", "6-6", "k", "6"]))
+        await handler.handle(encoder.encode_array(["XADD", "stream", "7-7", "k", "6"]))
+
+        response = await handler.handle(encoder.encode_array(["XRANGE", "stream", "5", "6"]))
+
+        expected_response = [
+            "*3\r\n",
+            "*2\r\n",
+            "$3\r\n5-3\r\n",
+            "*2\r\n",
+            "$1\r\nk\r\n",
+            "$1\r\n3\r\n",
+            "*2\r\n",
+            "$3\r\n5-5\r\n",
+            "*2\r\n",
+            "$1\r\nk\r\n",
+            "$1\r\n5\r\n",
+            "*2\r\n",
+            "$3\r\n6-6\r\n",
+            "*2\r\n",
+            "$1\r\nk\r\n",
+            "$1\r\n6\r\n",
+        ]
+
+        assert response == "".join(expected_response)
+
     async def test_get(self):
         handler = RedisCommandHandler()
         await handler.handle(encoder.encode_array(["SET", "key", "value"]))

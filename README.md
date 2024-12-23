@@ -37,13 +37,14 @@ Clients can send multiple requests as needed
 ### Commands
 
 1. PING and ECHO commands
-2. SET Command with limited expiry support. Only ACTIVE expiry possible
-3. GET and TYPE Command
-4. KEYS Command
-5. Limited CONFIG GET Command
-6. For GET and KEYS, can read from RDB file. Defaults to DB zero
-7. INFO Command basic support
-8. WAIT Command
+1. SET Command with limited expiry support. Only ACTIVE expiry possible
+1. GET and TYPE Command
+1. Stream commands: XADD, XRANGE
+1. KEYS Command
+1. Limited CONFIG GET Command
+1. For GET and KEYS, can read from RDB file. Defaults to DB zero
+1. INFO Command basic support
+1. WAIT Command
 
 ### Command Line Options
 
@@ -62,7 +63,12 @@ Only support RDB v3
 ### Replication
 
 Handshake for master-slave replication is in place.
-Do basic replication - capable of single or multiple replication
+Do basic replication - capable of single or multiple replication.
+Supports WAIT command and master commands to propogate to replicas
+
+### Stream Support
+
+Basic stream commands are supported.
 
 ## References and Help
 

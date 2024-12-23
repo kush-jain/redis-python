@@ -53,7 +53,7 @@ class Database(metaclass=Singleton):
             "expires_at": expires,
         }
 
-    def stream_add(self, stream_key, stream_id, *args):
+    def add_stream(self, stream_key, stream_id, *args):
         """
         Add the stream_id to the stream_key
 
@@ -68,7 +68,7 @@ class Database(metaclass=Singleton):
         }
         """
 
-        if not StreamUtils.compare_stream_ids("0-0", stream_id):
+        if not StreamUtils.validate_stream_ids("0-0", stream_id):
             raise RedisDBException(DBErrorCode.STREAM_ID_SMALLER_THAN_0)
 
         # First check if stream_key exists, if not, create one
@@ -77,7 +77,7 @@ class Database(metaclass=Singleton):
             last_stream_id = "0-0"
         else:
             last_stream_id = next(reversed(self.data[stream_key]))
-            if not StreamUtils.compare_stream_ids(last_stream_id, stream_id):
+            if not StreamUtils.validate_stream_ids(last_stream_id, stream_id):
                 raise RedisDBException(DBErrorCode.STREAM_ID_SMALLER_THAN_TOP)
 
         stream_id = StreamUtils.generate_stream_id(stream_id, last_stream_id)
@@ -87,7 +87,18 @@ class Database(metaclass=Singleton):
         self.data[stream_key][stream_id] = result
         return stream_id
 
-    def get(self, key):
+    def get_range_stream(self, stream_key: str, start_stream_id: str, end_stream_id: str) -> list:
+        """
+        Return a list of stream_ids from start_stream_id to end_stream_id, inclusive.
+        """
+
+        streams = self.get(stream_key)
+        if streams is None:
+            return []
+
+        return StreamUtils.get_streams(start_stream_id, end_stream_id, streams)
+
+    def get(self, key: str):
         value = self.data.get(key)
 
         if isinstance(value, dict) and value.get('type') == STREAM:

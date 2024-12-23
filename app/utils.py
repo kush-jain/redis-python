@@ -1,8 +1,9 @@
+from collections import OrderedDict
+from itertools import chain
+
 import string
 import random
 import time
-
-from app.exceptions import RedisException
 
 
 class Singleton(type):
@@ -27,7 +28,7 @@ def gen_random_string(length: int) -> str:
 class StreamUtils:
 
     @classmethod
-    def compare_stream_ids(cls, current_stream_id, incoming_stream_id):
+    def validate_stream_ids(cls, current_stream_id: str, incoming_stream_id: str):
         """
         Compare incoming stream_id with current stream_id.
         Stream id is combination of two strings:
@@ -36,6 +37,9 @@ class StreamUtils:
 
         incoming_stream_id should always be greater than current_stream_id.
         First timestamp is compared, and if equal then integer part is compared
+
+        Return true if incoming_stream_id is strictly greater than current_stream_id
+        (or we can generate incoming stream_id)
         """
 
         # WE need to generate complete, so no use checking,
@@ -71,7 +75,34 @@ class StreamUtils:
         return False
 
     @classmethod
-    def generate_stream_id(cls, incoming_stream_id, current_stream_id):
+    def compare_stream_ids(cls, first_stream_id: str, second_stream_id: str) -> bool:
+        """
+        Compare two fully formed stream IDS
+
+        Return true if second_stream_id is equal to greater than first_stream_id
+        """
+
+        # Split both stream IDs into their components
+        first_timestamp, first_int = first_stream_id.split('-')
+        second_timestamp, second_int = second_stream_id.split('-')
+
+        first_timestamp = int(first_timestamp)
+        second_timestamp = int(second_timestamp)
+
+        if first_timestamp < second_timestamp:
+            return True
+
+        if first_timestamp > second_timestamp:
+            return False
+
+        first_int = float('inf') if first_int == "*" else int(first_int)
+        second_int = float('inf') if second_int == "*" else int(second_int)
+
+        # If timestamps are equal, compare the integer part
+        return first_int <= second_int
+
+    @classmethod
+    def generate_stream_id(cls, incoming_stream_id: str, current_stream_id: str):
         """
         Stream ID could be:
         - *: we need to generate it
@@ -99,3 +130,46 @@ class StreamUtils:
 
         # If it is new timestamp, then we need to start from the beginning
         return f"{timestamp}-0"
+
+    @classmethod
+    def get_streams(cls, start_stream_id: str, end_stream_id: str, stream: OrderedDict):
+        """
+        Return list of streams for which start and end matches (both inclusive)
+        """
+
+        matched_streams = []
+
+        # If we are not given sequence, then for start assume 0
+        if len(start_stream_id.split("-")) == 1:
+            start_stream_id = f"{start_stream_id}-0"
+
+        # If we are not given sequence, then for end assume infinity
+        if len(end_stream_id.split("-")) == 1:
+            end_stream_id = f"{end_stream_id}-*"
+
+        start_found = False
+
+        for stream_id, value in stream.items():
+            if stream_id == "type":
+                continue
+
+            if cls.compare_stream_ids(start_stream_id, stream_id):
+                start_found = True
+
+            if start_found:
+
+                if cls.compare_stream_ids(end_stream_id, stream_id) and end_stream_id!=stream_id:
+                    break
+
+                # We have this format:
+                # <stream_id>: {
+                #     "key1": "value1",
+                #     "key2": "value2"
+                # }
+                # We need to append in this format
+                # [ <stream_id>, [ key1, value1, key2, value ] ]
+
+                element = [stream_id, list(chain.from_iterable(value.items()))]
+                matched_streams.append(element)
+
+        return matched_streams

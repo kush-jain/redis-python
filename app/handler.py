@@ -14,8 +14,9 @@ from app.utils import gen_random_string
 PING = "ping"
 ECHO = "echo"
 SET = "set"
-XADD = "xadd"
 GET = "get"
+XADD = "xadd"
+XRANGE = "xrange"
 CONFIG = "config"
 KEYS = "keys"
 INFO = "info"
@@ -77,7 +78,7 @@ class RedisCommandHandler:
         key_value_pairs = args[2:]
 
         try:
-            stream_id = self.db.stream_add(stream_key, id, *key_value_pairs)
+            stream_id = self.db.add_stream(stream_key, id, *key_value_pairs)
         except RedisDBException as exc:
             if exc.module == STREAM and exc.code == "small-top":
                 raise RedisException("The ID specified in XADD is equal or smaller than the target stream top item")
@@ -85,6 +86,14 @@ class RedisCommandHandler:
                 raise RedisException("The ID specified in XADD must be greater than 0-0")
 
         return self.encoder.encode_bulk_string(stream_id)
+
+    def xrange(self, args):
+
+        stream = args[0]
+        start_id = args[1]
+        end_id = args[2]
+
+        return self.encoder.encode_array(self.db.get_range_stream(stream, start_id, end_id))
 
     def get(self, key):
 
@@ -296,8 +305,9 @@ class RedisCommandHandler:
             PING: self.ping,
             ECHO: self.echo,
             SET: self.set,
-            XADD: self.xadd,
             GET: self.get,
+            XADD: self.xadd,
+            XRANGE: self.xrange,
             CONFIG: self.config,
             KEYS: self.keys,
             INFO: self.info,
