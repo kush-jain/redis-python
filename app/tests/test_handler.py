@@ -141,6 +141,34 @@ class TestHandler:
 
         assert response == "".join(expected_response)
 
+    async def test_xread_single_stream(self):
+
+        handler = RedisCommandHandler()
+        await handler.handle(encoder.encode_array(["XADD", "stream", "4-2", "k", "2"]))
+        await handler.handle(encoder.encode_array(["XADD", "stream", "5-3", "k", "3"]))
+        await handler.handle(encoder.encode_array(["XADD", "stream", "5-5", "k", "5"]))
+
+        response = await handler.handle(encoder.encode_array(["XREAD", "streams", "stream", "5"]))
+
+        expected_response = [
+            "*1\r\n",
+            "*2\r\n"
+            "$6\r\nstream\r\n"
+            "*2\r\n",
+            "*2\r\n",
+            "$3\r\n5-3\r\n",
+            "*2\r\n",
+            "$1\r\nk\r\n",
+            "$1\r\n3\r\n",
+            "*2\r\n",
+            "$3\r\n5-5\r\n",
+            "*2\r\n",
+            "$1\r\nk\r\n",
+            "$1\r\n5\r\n",
+        ]
+
+        assert response == "".join(expected_response)
+
     async def test_get(self):
         handler = RedisCommandHandler()
         await handler.handle(encoder.encode_array(["SET", "key", "value"]))

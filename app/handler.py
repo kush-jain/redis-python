@@ -17,6 +17,7 @@ SET = "set"
 GET = "get"
 XADD = "xadd"
 XRANGE = "xrange"
+XREAD = "xread"
 CONFIG = "config"
 KEYS = "keys"
 INFO = "info"
@@ -94,6 +95,15 @@ class RedisCommandHandler:
         end_id = args[2]
 
         return self.encoder.encode_array(self.db.get_range_stream(stream, start_id, end_id))
+
+    def xread(self, args):
+
+        stream_key = args[1]
+        start_id = args[2]
+
+        single_stream_response = self.db.get_range_stream(stream_key, start_id)
+        combined_response = [[stream_key, single_stream_response]]
+        return self.encoder.encode_array(combined_response)
 
     def get(self, key):
 
@@ -308,6 +318,7 @@ class RedisCommandHandler:
             GET: self.get,
             XADD: self.xadd,
             XRANGE: self.xrange,
+            XREAD: self.xread,
             CONFIG: self.config,
             KEYS: self.keys,
             INFO: self.info,

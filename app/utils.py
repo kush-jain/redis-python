@@ -132,9 +132,9 @@ class StreamUtils:
         return f"{timestamp}-0"
 
     @classmethod
-    def get_streams(cls, start_stream_id: str, end_stream_id: str, stream: OrderedDict):
+    def get_single_stream(cls, start_stream_id: str, end_stream_id: str, stream: OrderedDict):
         """
-        Return list of streams for which start and end matches (both inclusive)
+        Return list of streams for which start and end matches (both inclusive).
         """
 
         matched_streams = []

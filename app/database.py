@@ -93,7 +93,7 @@ class Database(metaclass=Singleton):
         self.data[stream_key][stream_id] = result
         return stream_id
 
-    def get_range_stream(self, stream_key: str, start_stream_id: str, end_stream_id: str) -> list:
+    def get_range_stream(self, stream_key: str, start_stream_id: str, end_stream_id: str="+") -> list:
         """
         Return a list of stream_ids from start_stream_id to end_stream_id, inclusive.
         """
@@ -108,7 +108,7 @@ class Database(metaclass=Singleton):
         if end_stream_id == "+":
             end_stream_id = max(self.data[stream_key].keys())
 
-        return StreamUtils.get_streams(start_stream_id, end_stream_id, streams)
+        return StreamUtils.get_single_stream(start_stream_id, end_stream_id, streams)
 
     def get(self, key: str):
         value = self.data.get(key)
