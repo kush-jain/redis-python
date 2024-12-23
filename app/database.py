@@ -96,6 +96,9 @@ class Database(metaclass=Singleton):
         if streams is None:
             return []
 
+        if start_stream_id == "-":
+            start_stream_id = "0-0"
+
         return StreamUtils.get_streams(start_stream_id, end_stream_id, streams)
 
     def get(self, key: str):
