@@ -75,7 +75,7 @@ class StreamUtils:
         return False
 
     @classmethod
-    def compare_stream_ids(cls, first_stream_id: str, second_stream_id: str) -> bool:
+    def compare_stream_ids(cls, first_stream_id: str, second_stream_id: str, inclusive: bool = True) -> bool:
         """
         Compare two fully formed stream IDS
 
@@ -99,7 +99,10 @@ class StreamUtils:
         second_int = float('inf') if second_int == "*" else int(second_int)
 
         # If timestamps are equal, compare the integer part
-        return first_int <= second_int
+        if inclusive:
+            return first_int <= second_int
+
+        return first_int < second_int
 
     @classmethod
     def generate_stream_id(cls, incoming_stream_id: str, current_stream_id: str):
@@ -134,10 +137,22 @@ class StreamUtils:
     @classmethod
     def get_single_stream(cls, start_stream_id: str, end_stream_id: str, stream: OrderedDict):
         """
-        Return list of streams for which start and end matches (both inclusive).
+        Return list of streams for which start and end matches.
+        Supports inclusive (default) or exclusive range based on parentheses.
         """
 
         matched_streams = []
+
+        # Determine inclusivity for start and end
+        start_inclusive = not start_stream_id.startswith("(")
+        end_inclusive = not end_stream_id.startswith("(")
+
+        # Strip parentheses if present
+        if not start_inclusive:
+            start_stream_id = start_stream_id[1:]
+
+        if not end_inclusive:
+            end_stream_id = end_stream_id[1:]
 
         # If we are not given sequence, then for start assume 0
         if len(start_stream_id.split("-")) == 1:
@@ -151,12 +166,12 @@ class StreamUtils:
 
         for stream_id, value in stream.items():
 
-            if cls.compare_stream_ids(start_stream_id, stream_id):
+            if cls.compare_stream_ids(start_stream_id, stream_id, inclusive=start_inclusive):
                 start_found = True
 
             if start_found:
 
-                if cls.compare_stream_ids(end_stream_id, stream_id) and end_stream_id!=stream_id:
+                if not cls.compare_stream_ids(stream_id, end_stream_id, inclusive=end_inclusive):
                     break
 
                 # We have this format:

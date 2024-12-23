@@ -126,7 +126,8 @@ class RedisCommandHandler:
         combined_response = []
 
         for stream_key, start_id in zip(stream_keys, start_ids):
-            stream_data = self.db.get_range_stream(stream_key, start_id)
+            # For XREAD, start is exclusive
+            stream_data = self.db.get_range_stream(stream_key, f"({start_id}")
             combined_response.append([stream_key, stream_data])
 
         return self.encoder.encode_array(combined_response)
