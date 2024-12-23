@@ -16,6 +16,7 @@ PING = "ping"
 ECHO = "echo"
 SET = "set"
 GET = "get"
+INCR = "incr"
 XADD = "xadd"
 XRANGE = "xrange"
 XREAD = "xread"
@@ -186,6 +187,21 @@ class RedisCommandHandler:
         value = self.db.get(key)
 
         return self.encoder.encode_bulk_string(value)
+
+    def increment(self, key):
+
+        key = key[0]
+        value = self.db.get(key)
+
+        # if value is None:
+        #     return self.encoder.encode_integer(0)
+
+        value = int(value)
+        value += 1
+
+        self.db.set(key, str(value))
+
+        return self.encoder.encode_integer(value)
 
     def type(self, key):
         key = key[0]
@@ -391,6 +407,7 @@ class RedisCommandHandler:
             ECHO: self.echo,
             SET: self.set,
             GET: self.get,
+            INCR: self.increment,
             XADD: self.xadd,
             XRANGE: self.xrange,
             XREAD: self.xread,

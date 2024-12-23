@@ -355,3 +355,12 @@ class TestHandler:
         assert await handler.handle(
             encoder.encode_array(["TYPE", "stream"])
         ) == encoder.encode_simple_string("stream")
+
+    async def test_incr(self):
+
+        handler = RedisCommandHandler()
+
+        await handler.handle(encoder.encode_array(["SET", "key1", "3"]))
+        assert await handler.handle(
+            encoder.encode_array(["INCR", "key1"])
+        ) == encoder.encode_integer(4)
