@@ -55,13 +55,13 @@ class RedisCommandHandler:
 
     ####### Actual Command Functions ######################
 
-    def ping(self, command_arr):
+    async def ping(self, command_arr):
         return "PONG", RedisType.SIMPLE_STRING
 
-    def echo(self, args):
+    async def echo(self, args):
         return args[0], RedisType.BULK_STRING
 
-    def set(self, args):
+    async def set(self, args):
         key = args[0]
         value = args[1]
 
@@ -78,7 +78,7 @@ class RedisCommandHandler:
 
         return "OK", RedisType.SIMPLE_STRING
 
-    def xadd(self, args):
+    async def xadd(self, args):
         """
         Implement Redis XADD operation
         """
@@ -96,7 +96,7 @@ class RedisCommandHandler:
 
         return stream_id, RedisType.BULK_STRING
 
-    def xrange(self, args):
+    async def xrange(self, args):
 
         stream = args[0]
         start_id = args[1]
@@ -187,14 +187,14 @@ class RedisCommandHandler:
 
         return None, RedisType.BULK_STRING  # No matching data found for any streams
 
-    def get(self, key):
+    async def get(self, key):
 
         key = key[0]
         value = self.db.get(key)
 
         return value, RedisType.BULK_STRING
 
-    def increment(self, key):
+    async def increment(self, key):
 
         key = key[0]
         value = self.db.get(key)
@@ -212,7 +212,7 @@ class RedisCommandHandler:
 
         return value, RedisType.INTEGER
 
-    def type(self, key):
+    async def type(self, key):
         key = key[0]
         value = self.db.get(key)
 
@@ -225,7 +225,7 @@ class RedisCommandHandler:
 
         return value_type, RedisType.SIMPLE_STRING
 
-    def keys(self, pattern):
+    async def keys(self, pattern):
         """
         Match the pattern against DB keys, and return that
         """
@@ -237,12 +237,12 @@ class RedisCommandHandler:
 
         return result, RedisType.ARRAY
 
-    def config_get(self, args):
+    async def config_get(self, args):
         key = args[0]
         value = os.getenv(key)
         return [key, value], RedisType.ARRAY
 
-    def config(self, args):
+    async def config(self, args):
 
         subcommand = args[0].lower()
 
@@ -253,9 +253,9 @@ class RedisCommandHandler:
         if subcommand not in config_map:
             raise RedisException(f"Invalid config subcommand: {subcommand}")
 
-        return config_map[subcommand](args[1:])
+        return await config_map[subcommand](args[1:])
 
-    def info_replication(self):
+    async def info_replication(self):
         is_replica = os.getenv("replicaof")
         role = "slave" if is_replica else "master"
 
@@ -271,7 +271,7 @@ class RedisCommandHandler:
         response_lines = [f"{key}:{value}" for key, value in response_parts.items()]
         return "\r\n".join(response_lines), RedisType.BULK_STRING
 
-    def info(self, args=None):
+    async def info(self, args=None):
 
         args = args or []
 
@@ -287,7 +287,7 @@ class RedisCommandHandler:
         if subcommand not in info_map:
             raise RedisException(f"Invalid info subcommand: {subcommand}")
 
-        return info_map[subcommand]()
+        return await info_map[subcommand]()
 
     async def wait(self, args):
         """
@@ -337,7 +337,7 @@ class RedisCommandHandler:
             # Wait before next check
             await asyncio.sleep(wait_time)
 
-    def replconf_getack(self, args):
+    async def replconf_getack(self, args):
         """
         Sends response back to replconf getack command.
         """
@@ -365,7 +365,7 @@ class RedisCommandHandler:
         subcommand = args[0].lower()
 
         if subcommand == "getack":
-            return self.replconf_getack(args[1:])
+            return await self.replconf_getack(args[1:])
 
         if subcommand == "ack":
             return await self.replconf_ack(args[1:], writer)
@@ -393,7 +393,7 @@ class RedisCommandHandler:
 
         return full_resync_command + self.encoder.encode_file(empty_rdb), None
 
-    def multi(self, args):
+    async def multi(self, args):
 
         # Initialize Transaction Queue
         self.transaction_queue = []
@@ -490,19 +490,14 @@ class RedisCommandHandler:
         # Commands which need to be passed writer argument
         writer_set = {PSYNC, REPLCONF}
 
-        # Commands which need to be run async
-        async_commands = {WAIT, XREAD, EXEC, DISCARD}
-
         kls = self.get_command_kls(command)
 
         try:
             if command in writer_set:
                 return await kls(command_arg, writer)
 
-            if command in async_commands:
-                return await kls(command_arg)
+            return await kls(command_arg)
 
-            return kls(command_arg)
         except RedisException as exc:
             return exc, RedisType.ERROR
 
