@@ -495,13 +495,16 @@ class RedisCommandHandler:
 
         kls = self.get_command_kls(command)
 
-        if command in writer_set:
-            return await kls(command_arg, writer)
+        try:
+            if command in writer_set:
+                return await kls(command_arg, writer)
 
-        if command in async_commands:
-            return await kls(command_arg)
+            if command in async_commands:
+                return await kls(command_arg)
 
-        return kls(command_arg)
+            return kls(command_arg)
+        except RedisException as exc:
+            return exc, RedisType.ERROR
 
     async def execute(self, command, command_arg, writer=None, execute_transaction=False):
         response = await self._execute(command, command_arg, writer, execute_transaction)
@@ -552,13 +555,10 @@ class RedisCommandHandler:
             propogated_command: Is this command propogated from master to replica?
         """
 
-        try:
-            if self.is_replica:
-                return await self.handle_replica(command_data, propogated_command)
+        if self.is_replica:
+            return await self.handle_replica(command_data, propogated_command)
 
-            return await self.handle_master_command(command_data, writer)
-        except RedisException as exc:
-            return self.encoder.encode_error(f"{str(exc)}")
+        return await self.handle_master_command(command_data, writer)
 
     def encode(self, data, data_type):
 
