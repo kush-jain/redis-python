@@ -39,7 +39,7 @@ Clients can send multiple requests as needed
 1. PING and ECHO commands
 1. SET Command with limited expiry support. Only ACTIVE expiry possible
 1. GET and TYPE Command
-1. Stream commands: XADD, XRANGE
+1. Stream commands: XADD, XRANGE, XREAD
 1. KEYS Command
 1. Limited CONFIG GET Command
 1. For GET and KEYS, can read from RDB file. Defaults to DB zero

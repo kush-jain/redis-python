@@ -97,12 +97,33 @@ class RedisCommandHandler:
         return self.encoder.encode_array(self.db.get_range_stream(stream, start_id, end_id))
 
     def xread(self, args):
+        """
+        Reads multiple streams starting from specified IDs.
 
-        stream_key = args[1]
-        start_id = args[2]
+        Args:
+            args (list): A list where:
+                - args[1] to args[n] are stream keys.
+                - args[n+1] to args[2n] are corresponding start IDs.
 
-        single_stream_response = self.db.get_range_stream(stream_key, start_id)
-        combined_response = [[stream_key, single_stream_response]]
+        Returns:
+            Encoded array containing stream keys and their respective data.
+        """
+        if not isinstance(args, list) or len(args) < 3 or (len(args) - 1) % 2 != 0:
+            raise RedisException("Invalid arguments. Expected stream keys and corresponding start IDs.")
+
+        num_streams = (len(args) - 1) // 2
+        stream_keys = args[1:num_streams + 1]
+        start_ids = args[num_streams + 1:]
+
+        if len(stream_keys) != len(start_ids):
+            raise RedisException("The number of stream keys must match the number of start IDs.")
+
+        combined_response = []
+
+        for stream_key, start_id in zip(stream_keys, start_ids):
+            stream_data = self.db.get_range_stream(stream_key, start_id)
+            combined_response.append([stream_key, stream_data])
+
         return self.encoder.encode_array(combined_response)
 
     def get(self, key):
