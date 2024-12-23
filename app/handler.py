@@ -128,9 +128,13 @@ class RedisCommandHandler:
         for stream_key, start_id in zip(stream_keys, start_ids):
             # For XREAD, start is exclusive
             stream_data = self.db.get_range_stream(stream_key, f"({start_id}")
-            combined_response.append([stream_key, stream_data])
+            if stream_data:
+                combined_response.append([stream_key, stream_data])
 
-        return self.encoder.encode_array(combined_response)
+        if combined_response:
+            return self.encoder.encode_array(combined_response)
+
+        return self.encoder.encode_bulk_string(None)  # No matching data found for any streams
 
     def get(self, key):
 
