@@ -408,7 +408,8 @@ class RedisCommandHandler:
 
         # Dummy transaction for now
         for command, comm_arr in self.transaction_queue:
-            responses.append(await self.execute(command, comm_arr, execute_transaction=True))
+            response, _ = await self._execute(command, comm_arr, execute_transaction=True)
+            responses.append(response)
 
         self.transaction_queue = None  # Clear the transaction queue
 
@@ -459,7 +460,7 @@ class RedisCommandHandler:
 
         return kls
 
-    async def _execute(self, command, command_arg, writer, execute_transaction):
+    async def _execute(self, command, command_arg, writer=None, execute_transaction=False):
 
         # Once we have transaction started, we dont execute any command
         if self.transaction_queue is not None and not execute_transaction:
@@ -489,7 +490,8 @@ class RedisCommandHandler:
 
     async def execute(self, command, command_arg, writer=None, execute_transaction=False):
         response = await self._execute(command, command_arg, writer, execute_transaction)
-        return self.encode(response[0], response[1])
+        if response:
+            return self.encode(response[0], response[1])
 
     async def handle_master_command(self, command_data, writer):
 

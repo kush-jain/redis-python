@@ -148,6 +148,8 @@ class RedisEncoder:
                 ret.append(self.encode_bulk_string(item))
             elif isinstance(item, list):
                 ret.append(self.encode_array(item))  # Assume integer for other types of data
+            elif isinstance(item, int):
+                ret.append(self.encode_integer(item))
 
         return "".join(ret)
 
