@@ -137,7 +137,18 @@ class RedisEncoder:
         return f"{BULK_STRING}{len(data)}{TERMINATOR}{data}{TERMINATOR}"
 
     def encode_array(self, data):
-        return f"{ARRAY}{len(data)}{TERMINATOR}{''.join(self.encode_bulk_string(item) for item in data)}"
+        """
+        Encode array
+        """
+        ret = [f"{ARRAY}{len(data)}{TERMINATOR}"]
+
+        for item in data:
+            if isinstance(item, str):
+                ret.append(self.encode_bulk_string(item))
+            elif isinstance(item, list):
+                ret.append(self.encode_array(item))  # Assume integer for other types of data
+
+        return "".join(ret)
 
     def encode_file(self, data: bytes):
         """

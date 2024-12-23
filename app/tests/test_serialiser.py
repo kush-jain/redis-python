@@ -55,5 +55,49 @@ class TestRedisEncoder:
     def test_array(self):
         assert RedisEncoder().encode_array(["foo", "bar"]) == "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"
 
+    def test_nested_array(self):
+        data =[
+            [
+                "1526985054069-0",
+                [
+                    "temperature",
+                    "36",
+                    "humidity",
+                    "95"
+                ]
+            ],
+            [
+                "1526985054079-0",
+                [
+                    "temperature",
+                    "37",
+                    "humidity",
+                    "94"
+                ]
+            ],
+        ]
+
+        response = RedisEncoder().encode_array(data)
+
+        expected_response = [
+            "*2\r\n",
+            "*2\r\n",
+            "$15\r\n1526985054069-0\r\n",
+            "*4\r\n",
+            "$11\r\ntemperature\r\n",
+            "$2\r\n36\r\n",
+            "$8\r\nhumidity\r\n",
+            "$2\r\n95\r\n",
+            "*2\r\n",
+            "$15\r\n1526985054079-0\r\n",
+            "*4\r\n",
+            "$11\r\ntemperature\r\n",
+            "$2\r\n37\r\n",
+            "$8\r\nhumidity\r\n",
+            "$2\r\n94\r\n"
+        ]
+
+        assert response == "".join(expected_response)
+
     def test_integer(self):
         assert RedisEncoder().encode_integer(123) == ":123\r\n"
