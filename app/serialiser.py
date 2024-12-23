@@ -1,11 +1,12 @@
 TERMINATOR = "\r\n"
 
-SIMPLE_STRING = "+"
-BULK_STRING = "$"
-ARRAY = "*"
-INTEGER = ":"
-ERROR = "-"
 
+class RedisType:
+    SIMPLE_STRING = "+"
+    BULK_STRING = "$"
+    ARRAY = "*"
+    INTEGER = ":"
+    ERROR = "-"
 
 
 class RedisDecoder:
@@ -114,13 +115,13 @@ class RedisDecoder:
 
         resp_type = arr[0]
 
-        if resp_type[0] == SIMPLE_STRING:
+        if resp_type[0] == RedisType.SIMPLE_STRING:
             return self.decode_simple_string(arr)
 
-        if resp_type[0] == BULK_STRING:
+        if resp_type[0] == RedisType.BULK_STRING:
             return self.decode_bulk_string(arr)
 
-        if resp_type[0] == ARRAY:
+        if resp_type[0] == RedisType.ARRAY:
             return self.decode_array(arr)
 
         return None, []
@@ -129,18 +130,18 @@ class RedisDecoder:
 class RedisEncoder:
 
     def encode_simple_string(self, data):
-        return f"{SIMPLE_STRING}{data}{TERMINATOR}"
+        return f"{RedisType.SIMPLE_STRING}{data}{TERMINATOR}"
 
     def encode_bulk_string(self, data):
         if data is None:
-            return f"{BULK_STRING}-1{TERMINATOR}"           # Null bulk string
-        return f"{BULK_STRING}{len(data)}{TERMINATOR}{data}{TERMINATOR}"
+            return f"{RedisType.BULK_STRING}-1{TERMINATOR}"           # Null bulk string
+        return f"{RedisType.BULK_STRING}{len(data)}{TERMINATOR}{data}{TERMINATOR}"
 
     def encode_array(self, data):
         """
         Encode array
         """
-        ret = [f"{ARRAY}{len(data)}{TERMINATOR}"]
+        ret = [f"{RedisType.ARRAY}{len(data)}{TERMINATOR}"]
 
         for item in data:
             if isinstance(item, str):
@@ -156,17 +157,17 @@ class RedisEncoder:
         Also, we expect data to be in bytes and give back bytes
         """
 
-        return f"{BULK_STRING}{len(data)}{TERMINATOR}".encode("utf-8") + data
+        return f"{RedisType.BULK_STRING}{len(data)}{TERMINATOR}".encode("utf-8") + data
 
     def encode_integer(self, data):
         """
         Encode integer
         """
-        return f"{INTEGER}{str(data)}{TERMINATOR}"
+        return f"{RedisType.INTEGER}{str(data)}{TERMINATOR}"
 
     def encode_error(self, error_message, error_code=None):
         """
         Encode error
         """
         error_code = error_code or "ERR"
-        return f"{ERROR}{error_code} {error_message}{TERMINATOR}"
+        return f"{RedisType.ERROR}{error_code} {error_message}{TERMINATOR}"

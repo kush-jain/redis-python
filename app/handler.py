@@ -3,10 +3,9 @@ import base64
 from datetime import datetime, timedelta
 import fnmatch
 import os
-import time
 
 from app.connection_registry import ConnectionRegistry
-from app.serialiser import RedisEncoder, RedisDecoder
+from app.serialiser import RedisEncoder, RedisDecoder, RedisType
 from app.exceptions import RedisException
 from app.database import Database, RedisDBException, STREAM
 from app.utils import gen_random_string
@@ -56,10 +55,10 @@ class RedisCommandHandler:
     ####### Actual Command Functions ######################
 
     def ping(self, command_arr):
-        return self.encoder.encode_simple_string("PONG")
+        return "PONG", RedisType.SIMPLE_STRING
 
     def echo(self, args):
-        return self.encoder.encode_bulk_string(args[0])
+        return args[0], RedisType.BULK_STRING
 
     def set(self, args):
         key = args[0]
@@ -76,7 +75,7 @@ class RedisCommandHandler:
 
         self.db.set(key, value, expires_at)
 
-        return self.encoder.encode_simple_string("OK")
+        return "OK", RedisType.SIMPLE_STRING
 
     def xadd(self, args):
         """
@@ -94,7 +93,7 @@ class RedisCommandHandler:
             if exc.module == STREAM and exc.code == "small-first":
                 raise RedisException("The ID specified in XADD must be greater than 0-0")
 
-        return self.encoder.encode_bulk_string(stream_id)
+        return stream_id, RedisType.BULK_STRING
 
     def xrange(self, args):
 
@@ -102,7 +101,7 @@ class RedisCommandHandler:
         start_id = args[1]
         end_id = args[2]
 
-        return self.encoder.encode_array(self.db.get_range_stream(stream, start_id, end_id))
+        return self.db.get_range_stream(stream, start_id, end_id), RedisType.ARRAY
 
     async def xread(self, args):
         """
@@ -183,16 +182,16 @@ class RedisCommandHandler:
             await asyncio.sleep(0.2)
 
         if combined_response:
-            return self.encoder.encode_array(combined_response)
+            return combined_response, RedisType.ARRAY
 
-        return self.encoder.encode_bulk_string(None)  # No matching data found for any streams
+        return None, RedisType.BULK_STRING  # No matching data found for any streams
 
     def get(self, key):
 
         key = key[0]
         value = self.db.get(key)
 
-        return self.encoder.encode_bulk_string(value)
+        return value, RedisType.BULK_STRING
 
     def increment(self, key):
 
@@ -210,7 +209,7 @@ class RedisCommandHandler:
 
         self.db.set(key, str(value))
 
-        return self.encoder.encode_integer(value)
+        return value, RedisType.INTEGER
 
     def type(self, key):
         key = key[0]
@@ -223,7 +222,7 @@ class RedisCommandHandler:
         elif isinstance(value, dict):
             value_type = "stream"
 
-        return self.encoder.encode_simple_string(value_type)
+        return value_type, RedisType.SIMPLE_STRING
 
     def keys(self, pattern):
         """
@@ -235,12 +234,12 @@ class RedisCommandHandler:
             if fnmatch.fnmatch(key, pattern[0]):
                 result.append(key)
 
-        return self.encoder.encode_array(result)
+        return result, RedisType.ARRAY
 
     def config_get(self, args):
         key = args[0]
         value = os.getenv(key)
-        return self.encoder.encode_array([key, value])
+        return [key, value], RedisType.ARRAY
 
     def config(self, args):
 
@@ -269,7 +268,7 @@ class RedisCommandHandler:
 
         # Convert dictionary to formatted response lines and encode
         response_lines = [f"{key}:{value}" for key, value in response_parts.items()]
-        return self.encoder.encode_bulk_string("\r\n".join(response_lines))
+        return "\r\n".join(response_lines), RedisType.BULK_STRING
 
     def info(self, args=None):
 
@@ -307,7 +306,7 @@ class RedisCommandHandler:
         target_offset = self.replication_offset
 
         if target_offset == 0:
-            return self.encoder.encode_integer(len(self.connection_registry.get_replicas()))
+            return len(self.connection_registry.get_replicas()), RedisType.INTEGER
 
         # Calculate when the timeout will occur
         start_time = asyncio.get_event_loop().time()
@@ -322,12 +321,12 @@ class RedisCommandHandler:
 
             # If we have enough synced replicas, return immediately
             if replicas_synced >= required_min_sync:
-                return self.encoder.encode_integer(replicas_synced)
+                return replicas_synced, RedisType.INTEGER
 
             # Check if we've exceeded the timeout
             current_time = asyncio.get_event_loop().time()
             if current_time >= end_time:
-                return self.encoder.encode_integer(replicas_synced)
+                return replicas_synced, RedisType.INTEGER
 
             # Calculate how long to wait before next check
             # Use a small interval (e.g., 100ms) but don't exceed remaining timeout
@@ -342,7 +341,7 @@ class RedisCommandHandler:
         Sends response back to replconf getack command.
         """
 
-        return self.encoder.encode_array(["REPLCONF", "ACK", str(self.bytes_processed)])
+        return ["REPLCONF", "ACK", str(self.bytes_processed)], RedisType.ARRAY
 
     async def replconf_ack(self, args, writer):
         """
@@ -371,7 +370,7 @@ class RedisCommandHandler:
             return await self.replconf_ack(args[1:], writer)
 
         # If it doesn't match, send OK. We will add error handling later
-        return self.encoder.encode_simple_string("OK")
+        return "OK", RedisType.SIMPLE_STRING
 
     async def psync(self, args, writer):
         """
@@ -391,16 +390,16 @@ class RedisCommandHandler:
             offset=self.replication_offset
         )
 
-        return full_resync_command + self.encoder.encode_file(empty_rdb)
+        return full_resync_command + self.encoder.encode_file(empty_rdb), None
 
     def multi(self, args):
 
         # Initialize Transaction Queue
         self.transaction_queue = []
 
-        return self.encoder.encode_simple_string("OK")
+        return "OK", RedisType.SIMPLE_STRING
 
-    def exec(self, args):
+    async def exec(self, args):
 
         if self.transaction_queue is None:
             raise RedisException("EXEC without MULTI")
@@ -409,11 +408,11 @@ class RedisCommandHandler:
 
         # Dummy transaction for now
         for command, comm_arr in self.transaction_queue:
-            pass
+            responses.append(await self.execute(command, comm_arr, execute_transaction=True))
 
         self.transaction_queue = None  # Clear the transaction queue
 
-        return self.encoder.encode_array(responses)
+        return responses, RedisType.ARRAY
 
     ##### Functions which handle meta-logic ####################
 
@@ -460,23 +459,23 @@ class RedisCommandHandler:
 
         return kls
 
-    async def execute(self, command, command_arg, writer=None):
+    async def _execute(self, command, command_arg, writer, execute_transaction):
 
         # Once we have transaction started, we dont execute any command
-        if self.transaction_queue is not None:
+        if self.transaction_queue is not None and not execute_transaction:
 
             # End transaction
             if command == EXEC:
-                return self.exec(command_arg)
+                return await self.exec(command_arg)
 
             self.transaction_queue.append((command, command_arg))
-            return self.encoder.encode_simple_string("QUEUED")
+            return "QUEUED", RedisType.SIMPLE_STRING
 
         # Commands which need to be passed writer argument
         writer_set = {PSYNC, REPLCONF}
 
         # Commands which need to be run async
-        async_commands = {WAIT, XREAD}
+        async_commands = {WAIT, XREAD, EXEC}
 
         kls = self.get_command_kls(command)
 
@@ -487,6 +486,10 @@ class RedisCommandHandler:
             return await kls(command_arg)
 
         return kls(command_arg)
+
+    async def execute(self, command, command_arg, writer=None, execute_transaction=False):
+        response = await self._execute(command, command_arg, writer, execute_transaction)
+        return self.encode(response[0], response[1])
 
     async def handle_master_command(self, command_data, writer):
 
@@ -539,3 +542,22 @@ class RedisCommandHandler:
             return await self.handle_master_command(command_data, writer)
         except RedisException as exc:
             return self.encoder.encode_error(f"{str(exc)}")
+
+    def encode(self, data, data_type):
+
+        if data_type == RedisType.INTEGER:
+            return self.encoder.encode_integer(data)
+        if data_type == RedisType.BULK_STRING:
+            return self.encoder.encode_bulk_string(data)
+        if data_type == RedisType.ARRAY:
+            return self.encoder.encode_array(data)
+        if data_type == RedisType.SIMPLE_STRING:
+            return self.encoder.encode_simple_string(data)
+        if data_type == RedisType.ERROR:
+            return self.encoder.encode_error(data)
+
+        # Special Case, data is already encoded, return as is
+        if data_type is None:
+            return data
+
+        raise RedisException(f"Unsupported data type: {data_type}")
