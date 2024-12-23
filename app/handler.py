@@ -405,6 +405,16 @@ class RedisCommandHandler:
         if self.transaction_queue is None:
             raise RedisException("EXEC without MULTI")
 
+        responses = []
+
+        # Dummy transaction for now
+        for command, comm_arr in self.transaction_queue:
+            pass
+
+        self.transaction_queue = None  # Clear the transaction queue
+
+        return self.encoder.encode_array(responses)
+
     ##### Functions which handle meta-logic ####################
 
     async def write_to_replicas(self, data):
