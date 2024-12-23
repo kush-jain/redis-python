@@ -462,6 +462,16 @@ class RedisCommandHandler:
 
     async def execute(self, command, command_arg, writer=None):
 
+        # Once we have transaction started, we dont execute any command
+        if self.transaction_queue is not None:
+
+            # End transaction
+            if command == EXEC:
+                return self.exec(command_arg)
+
+            self.transaction_queue.append((command, command_arg))
+            return self.encoder.encode_simple_string("QUEUED")
+
         # Commands which need to be passed writer argument
         writer_set = {PSYNC, REPLCONF}
 
