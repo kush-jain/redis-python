@@ -75,6 +75,7 @@ Basic stream commands are supported.
 ### Transaction Support
 
 Support MULTI, EXEC and DISCARD for transaction
+Does error handling, and works with multiple transactions
 
 ## References and Help
 
