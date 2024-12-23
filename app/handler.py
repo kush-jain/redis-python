@@ -193,8 +193,8 @@ class RedisCommandHandler:
         key = key[0]
         value = self.db.get(key)
 
-        # if value is None:
-        #     return self.encoder.encode_integer(0)
+        if value is None:
+            value = 0
 
         value = int(value)
         value += 1
