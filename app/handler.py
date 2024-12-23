@@ -144,12 +144,21 @@ class RedisCommandHandler:
         stream_keys = stream_args[:num_streams]
         start_ids = stream_args[num_streams:]
 
+        for idx, val in enumerate(start_ids):
+
+            if val == "$":
+                stream_key = stream_keys[idx]
+                # Hackish way, since we need to freeze the key
+                val = max(self.db.data[stream_key].keys())
+
+            # For XREAD, start is exclusive
+            start_ids[idx] = f"({val}"
+
         combined_response = []
 
         while True:
             for stream_key, start_id in zip(stream_keys, start_ids):
-                # For XREAD, start is exclusive
-                stream_data = self.db.get_range_stream(stream_key, f"({start_id}")
+                stream_data = self.db.get_range_stream(stream_key, start_id)
                 if stream_data:
                     combined_response.append([stream_key, stream_data])
 
