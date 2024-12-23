@@ -3,6 +3,7 @@ import base64
 from datetime import datetime, timedelta
 import fnmatch
 import os
+import time
 
 from app.connection_registry import ConnectionRegistry
 from app.serialiser import RedisEncoder, RedisDecoder
@@ -96,14 +97,15 @@ class RedisCommandHandler:
 
         return self.encoder.encode_array(self.db.get_range_stream(stream, start_id, end_id))
 
-    def xread(self, args):
+    async def xread(self, args):
         """
         Reads multiple streams starting from specified IDs.
 
         Args:
-            args (list): A list where:
-                - args[1] to args[n] are stream keys.
-                - args[n+1] to args[2n] are corresponding start IDs.
+            args (list): A list containing:
+                - "streams" at an arbitrary position.
+                - Stream keys and their corresponding start IDs after "streams".
+                - Optionally block argument
 
         Returns:
             Encoded array containing stream keys and their respective data.
@@ -111,9 +113,24 @@ class RedisCommandHandler:
         if not isinstance(args, list) or "streams" not in args:
             raise RedisException("Invalid arguments. Expected streams in argument list")
 
+        args = [item.lower() for item in args]
+
         # Find the index of "streams"
         streams_index = args.index("streams")
         stream_args = args[streams_index + 1:]
+
+        # Find index of "block"
+        try:
+            block_index = args.index("block")
+        except ValueError:
+            block_time = None
+        else:
+            block_time = int(args[block_index + 1]) # In Milliseconds
+            if block_time < 0:
+                raise RedisException("Block time must be a non-negative integer.")
+            # Calculate when the timeout will occur
+            start_time = asyncio.get_event_loop().time()
+            end_time = start_time + block_time // 1000
 
         # Extract stream keys and IDs
         if len(stream_args) % 2 != 0:
@@ -125,11 +142,25 @@ class RedisCommandHandler:
 
         combined_response = []
 
-        for stream_key, start_id in zip(stream_keys, start_ids):
-            # For XREAD, start is exclusive
-            stream_data = self.db.get_range_stream(stream_key, f"({start_id}")
-            if stream_data:
-                combined_response.append([stream_key, stream_data])
+        while True:
+            for stream_key, start_id in zip(stream_keys, start_ids):
+                # For XREAD, start is exclusive
+                stream_data = self.db.get_range_stream(stream_key, f"({start_id}")
+                if stream_data:
+                    combined_response.append([stream_key, stream_data])
+
+            if combined_response:
+                break
+
+            if block_time is None:
+                break
+
+            current_time = asyncio.get_event_loop().time()
+            if current_time > end_time:
+                break
+
+            # Sleep for a short time to avoid busy waiting
+            await asyncio.sleep(0.2)
 
         if combined_response:
             return self.encoder.encode_array(combined_response)
@@ -384,7 +415,7 @@ class RedisCommandHandler:
             return await kls(command_arr, writer)
 
         # Commands which need to be run async
-        async_set = {WAIT}
+        async_set = {WAIT, XREAD}
         if command in async_set:
             return await kls(command_arr)
 
@@ -398,7 +429,7 @@ class RedisCommandHandler:
 
         # Commands to which Replicas need to reply in case of propogation
         reply_back_commands = {REPLCONF}
-        async_commands = {REPLCONF}
+        async_commands = {REPLCONF, XREAD}
 
         responses = []
 
