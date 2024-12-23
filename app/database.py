@@ -7,6 +7,13 @@ from app.utils import Singleton, StreamUtils
 
 STREAM = "stream"
 
+
+class Stream(OrderedDict):
+    """
+    Base class for stream
+    """
+
+
 class DBErrorCode(Enum):
     STREAM_ID_SMALLER_THAN_TOP = (STREAM, "small-top", "Stream ID is smaller than top element")
     STREAM_ID_SMALLER_THAN_0 = (STREAM, "small-first", "Stream ID is smaller than 0-1")
@@ -59,7 +66,6 @@ class Database(metaclass=Singleton):
 
         Final stream format:
         <stream_key>: {
-            "type": "stream",
             "<stream_id_1">: {
                 "key1": "value1",
                 "key2": "value2"
@@ -73,7 +79,7 @@ class Database(metaclass=Singleton):
 
         # First check if stream_key exists, if not, create one
         if stream_key not in self.data:
-            self.data[stream_key] = OrderedDict(type=STREAM)
+            self.data[stream_key] = Stream()
             last_stream_id = "0-0"
         else:
             last_stream_id = next(reversed(self.data[stream_key]))
@@ -99,12 +105,15 @@ class Database(metaclass=Singleton):
         if start_stream_id == "-":
             start_stream_id = "0-0"
 
+        if end_stream_id == "+":
+            end_stream_id = max(self.data[stream_key].keys())
+
         return StreamUtils.get_streams(start_stream_id, end_stream_id, streams)
 
     def get(self, key: str):
         value = self.data.get(key)
 
-        if isinstance(value, dict) and value.get('type') == STREAM:
+        if isinstance(value, Stream):
             return value
 
         if value is not None:

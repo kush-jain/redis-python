@@ -38,7 +38,6 @@ class TestHandler:
         await handler.handle(encoder.encode_array(["XADD", "stream", "0-2", "field1", "a", "field2", "b"]))
 
         assert handler.db.get("stream") == {
-            "type": "stream",
             "0-1": {"field1": "value1", "field2": "value2"},
             "0-2": {"field1": "a", "field2": "b"},
         }

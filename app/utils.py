@@ -150,8 +150,6 @@ class StreamUtils:
         start_found = False
 
         for stream_id, value in stream.items():
-            if stream_id == "type":
-                continue
 
             if cls.compare_stream_ids(start_stream_id, stream_id):
                 start_found = True

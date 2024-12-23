@@ -110,7 +110,7 @@ class RedisCommandHandler:
 
         if isinstance(value, str):
             value_type = "string"
-        elif isinstance(value, dict) and value.get("type") == STREAM:
+        elif isinstance(value, dict):
             value_type = "stream"
 
         return self.encoder.encode_simple_string(value_type)
