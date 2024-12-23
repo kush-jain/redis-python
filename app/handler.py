@@ -132,6 +132,10 @@ class RedisCommandHandler:
             start_time = asyncio.get_event_loop().time()
             end_time = start_time + block_time // 1000
 
+            # Block time of zero is infinite block.
+            if block_time == 0:
+                end_time = float('inf')
+
         # Extract stream keys and IDs
         if len(stream_args) % 2 != 0:
             raise RedisException("The number of stream keys must match the number of start IDs.")
