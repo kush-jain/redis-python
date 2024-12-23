@@ -150,6 +150,8 @@ class RedisEncoder:
                 ret.append(self.encode_array(item))  # Assume integer for other types of data
             elif isinstance(item, int):
                 ret.append(self.encode_integer(item))
+            elif isinstance(item, Exception):
+                ret.append(self.encode_error(item))
 
         return "".join(ret)
 
@@ -167,9 +169,9 @@ class RedisEncoder:
         """
         return f"{RedisType.INTEGER}{str(data)}{TERMINATOR}"
 
-    def encode_error(self, error_message, error_code=None):
+    def encode_error(self, error, error_code=None):
         """
         Encode error
         """
         error_code = error_code or "ERR"
-        return f"{RedisType.ERROR}{error_code} {error_message}{TERMINATOR}"
+        return f"{RedisType.ERROR}{error_code} {error}{TERMINATOR}"
