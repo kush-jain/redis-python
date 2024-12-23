@@ -20,6 +20,7 @@ INCR = "incr"
 XADD = "xadd"
 XRANGE = "xrange"
 XREAD = "xread"
+MULTI = "multi"
 CONFIG = "config"
 KEYS = "keys"
 INFO = "info"
@@ -48,6 +49,10 @@ class RedisCommandHandler:
             self.replication_offset = 0
 
         self.bytes_processed = 0
+
+        self.transaction_queue = None
+
+    ####### Actual Command Functions ######################
 
     def ping(self, command_arr):
         return self.encoder.encode_simple_string("PONG")
@@ -387,6 +392,15 @@ class RedisCommandHandler:
 
         return full_resync_command + self.encoder.encode_file(empty_rdb)
 
+    def multi(self, args):
+
+        # Initialize Transaction Queue
+        self.transaction_queue = []
+
+        return self.encoder.encode_simple_string("OK")
+
+    ##### Functions which handle meta-logic ####################
+
     async def write_to_replicas(self, data):
         """
         Write data to all registered replicas
@@ -414,6 +428,7 @@ class RedisCommandHandler:
             XADD: self.xadd,
             XRANGE: self.xrange,
             XREAD: self.xread,
+            MULTI: self.multi,
             CONFIG: self.config,
             KEYS: self.keys,
             INFO: self.info,

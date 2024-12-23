@@ -364,3 +364,10 @@ class TestHandler:
         assert await handler.handle(
             encoder.encode_array(["INCR", "key1"])
         ) == encoder.encode_integer(4)
+
+    async def test_multi(self):
+
+        handler = RedisCommandHandler()
+
+        assert await handler.handle(encoder.encode_array(["MULTI"])) == "+OK\r\n"
+        assert handler.transaction_queue == []
