@@ -196,7 +196,10 @@ class RedisCommandHandler:
         if value is None:
             value = 0
 
-        value = int(value)
+        try:
+            value = int(value)
+        except ValueError:
+            raise RedisException("value is not an integer or out of range")
         value += 1
 
         self.db.set(key, str(value))
