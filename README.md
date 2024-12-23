@@ -41,6 +41,7 @@ Clients can send multiple requests as needed
 1. GET and TYPE Command
 1. INCR
 1. Stream commands: XADD, XRANGE, XREAD
+1. EXEC, MULTI support
 1. KEYS Command
 1. Limited CONFIG GET Command
 1. For GET and KEYS, can read from RDB file. Defaults to DB zero
@@ -70,6 +71,10 @@ Supports WAIT command and master commands to propogate to replicas
 ### Stream Support
 
 Basic stream commands are supported.
+
+### Transaction Support
+
+Support MULTI and EXEC for transaction
 
 ## References and Help
 
