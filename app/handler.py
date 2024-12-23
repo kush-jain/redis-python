@@ -428,31 +428,35 @@ class RedisCommandHandler:
 
         return kls
 
+    async def execute(self, command, command_arg, writer=None):
+
+        # Commands which need to be passed writer argument
+        writer_set = {PSYNC, REPLCONF}
+
+        # Commands which need to be run async
+        async_commands = {WAIT, XREAD}
+
+        kls = self.get_command_kls(command)
+
+        if command in writer_set:
+            return await kls(command_arg, writer)
+
+        if command in async_commands:
+            return await kls(command_arg)
+
+        return kls(command_arg)
+
     async def handle_master_command(self, command_data, writer):
 
         command_arr = RedisDecoder().decode(command_data)
         command, command_arr = self.get_command(command_arr)
 
-        kls = self.get_command_kls(command)
-
         # Commands which need to be broadcasted to the replicas
         broadcast_set = {SET}
-
         if command in broadcast_set:
             await self.write_to_replicas(command_data)
 
-        # Commands which need to be passed writer argument
-        writer_set = {PSYNC, REPLCONF}
-
-        if command in writer_set:
-            return await kls(command_arr, writer)
-
-        # Commands which need to be run async
-        async_set = {WAIT, XREAD}
-        if command in async_set:
-            return await kls(command_arr)
-
-        return kls(command_arr)
+        return await self.execute(command, command_arr, writer)
 
     async def handle_replica(self, command_data, propogated_command):
         """
@@ -462,18 +466,12 @@ class RedisCommandHandler:
 
         # Commands to which Replicas need to reply in case of propogation
         reply_back_commands = {REPLCONF}
-        async_commands = {REPLCONF, XREAD}
 
         responses = []
 
         for command, comm_length in command_arr:
             comm, comm_arr = self.get_command(command)
-            kls = self.get_command_kls(comm)
-
-            if comm in async_commands:
-                response = await kls(comm_arr)
-            else:
-                response = kls(comm_arr)
+            response = await self.execute(comm, comm_arr)
 
             # Send back the response to the client
             # In case this is propogation, only send back replies when needed
